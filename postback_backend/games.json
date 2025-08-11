@@ -141,5 +141,59 @@
     "status": "active",
     "expiration_date": null,
     "payout_type": "cpa_flat"
+  },
+  {
+    "id": "1754903701238",
+    "title": "iSurveyGo Survey Complete (Direct to survey)_Incent Multi Geo",
+    "genre": "",
+    "rating": "",
+    "link": "http://localhost:5000/go/4770",
+    "createdAt": "2025-08-11T09:15:01.238Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "cpa_flat"
+  },
+  {
+    "id": "1754904328253",
+    "title": "freefire",
+    "genre": "action",
+    "rating": "5",
+    "image": "https://i.pinimg.com/1200x/c3/35/8c/c3358c47c5671309a8984ae4277d6b7b.jpg",
+    "link": "https://i.pinimg.com/1200x/c3/35/8c/c3358c47c5671309a8984ae4277d6b7b.jpg",
+    "createdAt": "2025-08-11T09:25:28.253Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "fixed"
+  },
+  {
+    "id": "1754904501694",
+    "title": "Theorem Research Survey Complete CPS_Incent Multi Geo",
+    "genre": "",
+    "rating": "",
+    "link": "http://localhost:5000/go/8464",
+    "createdAt": "2025-08-11T09:28:21.694Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "cpa_percentage"
+  },
+  {
+    "id": "1754904878267",
+    "title": "RRS EJ | SSA hima fv Mutou, LIL Sst Amst",
+    "genre": "",
+    "rating": "",
+    "image": "",
+    "link": "",
+    "createdAt": "2025-08-11T09:34:38.267Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "fixed"
   }
 ]

@@ -1751,17 +1751,33 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} onViewLottery={() => setShowLotteryModal(true)} handleProtectedClick={handleProtectedClick} />}
       {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
       {/* ----------------- Added Offers ----------------- */}
-      <section className="game-section" id="section-Added-Offers" style={{ marginTop: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+      <section
+        className="game-section"
+        id="section-Added-Offers"
+        style={{ marginTop: 24 }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
           <h2 className="section-title-with-icon">Added Offers</h2>
           <button
             className="view-all-button"
-            onClick={() => setExpandedSections(prev => ({ ...prev, ['Added Offers']: !prev['Added Offers'] }))}
+            onClick={() =>
+              setExpandedSections((prev) => ({
+                ...prev,
+                ["Added Offers"]: !prev["Added Offers"],
+              }))
+            }
           >
-            {expandedSections['Added Offers'] ? 'Show Less' : 'View All'}
+            {expandedSections["Added Offers"] ? "Show Less" : "View All"}
           </button>
         </div>
-                  
+          
         {loadingAddedOffers ? (
           <div>Loading added offers…</div>
         ) : addedOffersError ? (
@@ -1770,125 +1786,258 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
           <div>No offers added yet.</div>
         ) : (
           <>
-            {expandedSections['Added Offers'] ? (
-              <div className="game-cards-grid">
-                {addedOffers.map(game => (
-                  <div
-                    key={game.id}
-                    className="gradient-card-wrapper"
-                    style={{
-                      padding: 2,
-                      borderRadius: 20,
-                      display: 'inline-block',
-                      width: 180,
-                      backgroundColor: '#1e1e2f',
-                      color: 'white'
-                    }}
-                  >
-                    <div style={{ overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
-                      <img
-                        src={game.image || game.icon || '/placehold.jpg'}
-                        alt={game.title}
-                        style={{ width: '100%', height: 120, objectFit: 'cover' }}
-                      />
-                    </div>
-                    <div style={{ padding: '8px 6px', textAlign: 'center' }}>
-                      <h4
-                        style={{
-                          margin: '4px 0',
-                          fontSize: '14px',
-                          fontWeight: 'bold',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis'
-                        }}
-                      >
-                        {game.title}
-                      </h4>
-                      <p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>
-                        {game.genre || 'Unknown Genre'}
-                      </p>
-                      <div style={{ marginTop: 4 }}>
-                        {Array.from({ length: 5 }).map((_, idx) => (
-                          <span
-                            key={idx}
-                            style={{
-                              color: idx < Math.round(Number(game.rating) || 0) ? '#FFD700' : '#555',
-                              fontSize: '14px'
-                            }}
-                          >
-                            ★
-                          </span>
-                        ))}
-                        <span style={{ marginLeft: 4, fontSize: '12px', color: '#aaa' }}>
-                          {Number(game.rating) ? Number(game.rating).toFixed(1) : '0.0'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="carousel-wrapper">
-                <button className="scroll-btn left" onClick={() => scrollLeft('Added Offers')}>&lt;</button>
-                <div className="game-carousel" id={`carousel-Added-Offers`}>
-                  {addedOffers.slice(0, 8).map(game => (
+            {expandedSections["Added Offers"] ? (
+              /* === GRID VIEW (View All) === */
+              <div
+                className="game-cards-grid"
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: "16px",
+                }}
+              >
+                {addedOffers.map((item) => {
+                  const isGame = Boolean(item.genre || item.rating);
+                
+                  // Safe rating handling
+                  const rawRating = parseFloat(item.rating);
+                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+                  ratingNum = Math.max(0, Math.min(5, ratingNum));
+                  const ratingInt = Math.round(ratingNum);
+                  const filledStarsCount = Math.max(0, Math.min(5, ratingInt));
+                  const emptyStarsCount = Math.max(0, Math.min(5, 5 - filledStarsCount));
+                  const filledStars = "★".repeat(filledStarsCount);
+                  const emptyStars = "☆".repeat(emptyStarsCount);
+                  const ratingDisplay = ratingNum.toFixed(1);
+                
+                  return (
                     <div
-                      key={game.id}
+                      key={item.id ?? item.title ?? Math.random()}
                       className="gradient-card-wrapper"
                       style={{
                         padding: 2,
                         borderRadius: 20,
-                        display: 'inline-block',
-                        width: 180,
-                        backgroundColor: '#1e1e2f',
-                        color: 'white'
+                        display: "inline-block",
                       }}
                     >
-                      <div style={{ overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
-                        <img
-                          src={game.image || game.icon || '/placehold.jpg'}
-                          alt={game.title}
-                          style={{ width: '100%', height: 120, objectFit: 'cover' }}
-                        />
-                      </div>
-                      <div style={{ padding: '8px 6px', textAlign: 'center' }}>
-                        <h4
+                      {isGame ? (
+                        <div className="offer-card" style={{ textAlign: "center" }}>
+                          <img
+                            src={item.image || "/placehold.jpg"}
+                            alt={item.name || item.title}
+                            style={{
+                              width: "100%",
+                              height: "150px",
+                              objectFit: "cover",
+                              borderRadius: "12px",
+                            }}
+                          />
+                          <p
+                            style={{
+                              fontWeight: "bold",
+                              marginTop: "8px",
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {item.name || item.title}
+                          </p>
+                          <p style={{ color: "#aaa", fontSize: "14px" }}>
+                            {item.genre || "Unknown Genre"}
+                          </p>
+                          <p
+                            style={{
+                              color: "#FFD700",
+                              fontWeight: "bold",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {filledStars}
+                            {emptyStars} {ratingDisplay}
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          className="offer-card"
                           style={{
-                            margin: '4px 0',
-                            fontSize: '14px',
-                            fontWeight: 'bold',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis'
+                            background: "#1e1e2f",
+                            padding: "12px",
+                            borderRadius: "12px",
+                            color: "#fff",
                           }}
                         >
-                          {game.title}
-                        </h4>
-                        <p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>
-                          {game.genre || 'Unknown Genre'}
-                        </p>
-                        <div style={{ marginTop: 4 }}>
-                          {Array.from({ length: 5 }).map((_, idx) => (
-                            <span
-                              key={idx}
-                              style={{
-                                color: idx < Math.round(Number(game.rating) || 0) ? '#FFD700' : '#555',
-                                fontSize: '14px'
-                              }}
-                            >
-                              ★
-                            </span>
-                          ))}
-                          <span style={{ marginLeft: 4, fontSize: '12px', color: '#aaa' }}>
-                            {Number(game.rating) ? Number(game.rating).toFixed(1) : '0.0'}
-                          </span>
+                          <p
+                            style={{
+                              fontWeight: "bold",
+                              color: "gold",
+                              fontSize: "16px",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            {item.offerName || item.name || item.title || "Untitled Offer"}
+                          </p>
+                          
+                          <div
+                            style={{ fontSize: "13px", color: "#ccc", lineHeight: "1.4" }}
+                          >
+                            {Object.entries(item)
+                              .filter(([key, val]) =>
+                                val &&
+                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                              )
+                              .map(([key, val]) => {
+                                let displayVal = val;
+                                if (
+                                  key.toLowerCase().includes("date") ||
+                                  key.toLowerCase().includes("expires")
+                                ) {
+                                  const parsed = new Date(val);
+                                  if (!isNaN(parsed.getTime())) {
+                                    displayVal = parsed.toLocaleString();
+                                  }
+                                }
+                                return (
+                                  <p key={key}>
+                                    <strong style={{ color: "#aaa" }}>
+                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                    </strong>
+                                    {String(displayVal)}
+                                  </p>
+                                );
+                              })}
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
-                <button className="scroll-btn right" onClick={() => scrollRight('Added Offers')}>&gt;</button>
+                  );
+                })}
+              </div>
+            ) : (
+              /* === HORIZONTAL SCROLL VIEW === */
+              <div
+                className="carousel-wrapper"
+                style={{
+                  display: "flex",
+                  overflowX: "auto",
+                  gap: "16px",
+                  paddingBottom: "10px",
+                  scrollbarWidth: "thin",
+                }}
+              >
+                {addedOffers.slice(0, 12).map((item) => {
+                  const isGame = Boolean(item.genre || item.rating);
+                
+                  // Safe rating handling
+                  const rawRating = parseFloat(item.rating);
+                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+                  ratingNum = Math.max(0, Math.min(5, ratingNum));
+                  const ratingInt = Math.round(ratingNum);
+                  const filledStarsCount = Math.max(0, Math.min(5, ratingInt));
+                  const emptyStarsCount = Math.max(0, Math.min(5, 5 - filledStarsCount));
+                  const filledStars = "★".repeat(filledStarsCount);
+                  const emptyStars = "☆".repeat(emptyStarsCount);
+                  const ratingDisplay = ratingNum.toFixed(1);
+                
+                  return (
+                    <div
+                      key={item.id ?? item.title ?? Math.random()}
+                      className="gradient-card-wrapper"
+                      style={{
+                        flex: "0 0 auto",
+                        width: "200px",
+                        padding: 2,
+                        borderRadius: 20,
+                      }}
+                    >
+                      {isGame ? (
+                        <div className="offer-card" style={{ textAlign: "center" }}>
+                          <img
+                            src={item.image || "/placehold.jpg"}
+                            alt={item.name || item.title}
+                            style={{
+                              width: "100%",
+                              height: "150px",
+                              objectFit: "cover",
+                              borderRadius: "12px",
+                            }}
+                          />
+                          <p
+                            style={{
+                              fontWeight: "bold",
+                              marginTop: "8px",
+                              textTransform: "capitalize",
+                            }}
+                          >
+                            {item.name || item.title}
+                          </p>
+                          <p style={{ color: "#aaa", fontSize: "14px" }}>
+                            {item.genre || "Unknown Genre"}
+                          </p>
+                          <p
+                            style={{
+                              color: "#FFD700",
+                              fontWeight: "bold",
+                              fontSize: "14px",
+                            }}
+                          >
+                            {filledStars}
+                            {emptyStars} {ratingDisplay}
+                          </p>
+                        </div>
+                      ) : (
+                        <div
+                          className="offer-card"
+                          style={{
+                            background: "#1e1e2f",
+                            padding: "12px",
+                            borderRadius: "12px",
+                            color: "#fff",
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontWeight: "bold",
+                              color: "gold",
+                              fontSize: "16px",
+                              marginBottom: "6px",
+                            }}
+                          >
+                            {item.offerName || item.name || item.title || "Untitled Offer"}
+                          </p>
+                          
+                          <div
+                            style={{ fontSize: "13px", color: "#ccc", lineHeight: "1.4" }}
+                          >
+                            {Object.entries(item)
+                              .filter(([key, val]) =>
+                                val &&
+                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                              )
+                              .map(([key, val]) => {
+                                let displayVal = val;
+                                if (
+                                  key.toLowerCase().includes("date") ||
+                                  key.toLowerCase().includes("expires")
+                                ) {
+                                  const parsed = new Date(val);
+                                  if (!isNaN(parsed.getTime())) {
+                                    displayVal = parsed.toLocaleString();
+                                  }
+                                }
+                                return (
+                                  <p key={key}>
+                                    <strong style={{ color: "#aaa" }}>
+                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                    </strong>
+                                    {String(displayVal)}
+                                  </p>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </>
@@ -1896,8 +2045,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       </section>
       
       
-      
-        <Footer />
+ <Footer />
     </div>
   );
 }
