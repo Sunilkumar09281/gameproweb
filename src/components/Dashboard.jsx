@@ -558,7 +558,7 @@ export default function Dashboard() {
         );
       case 'postback-sender':
         return (
-          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Postback Sender</h2>
             <form onSubmit={handlePostbackSend} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               <label>
@@ -619,7 +619,7 @@ export default function Dashboard() {
                 ))}
                 <button type="button" onClick={addCustomField} style={{ marginTop: 6 }}>+ Add Custom Field</button>
               </fieldset>
-              <div style={{ marginTop: 16, background: '#f6f6f6', padding: 12, borderRadius: 4 }}>
+              <div style={{ marginTop: 16, background: '#130e0eff', padding: 12, borderRadius: 4 }}>
                 <strong>Preview URL:</strong>
                 <div style={{ wordBreak: 'break-all', color: '#333', margin: '6px 0' }}>{previewUrl}</div>
                 {postbackMethod === 'POST' && (
@@ -643,7 +643,7 @@ export default function Dashboard() {
         );
       case 'postback-receiver':
         return (
-          <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Postback Receiver</h2>
             <div style={{ marginTop: 16, color: '#555' }}>
               <button onClick={fetchPostbacks} style={{ marginBottom: 16 }}>Refresh</button>
@@ -675,9 +675,9 @@ export default function Dashboard() {
               {filteredPostbacks.length === 0 && !loadingPostbacks && <div>No postbacks match your filters.</div>}
               {filteredPostbacks.length > 0 && (
                 <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafafa' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', background: '#0f0808ff' }}>
                     <thead>
-                      <tr style={{ background: '#f3f3f3' }}>
+                      <tr style={{ background: '#110808ff' }}>
                         <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>#</th>
                         <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Received At</th>
                         <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>IP</th>
@@ -699,7 +699,7 @@ export default function Dashboard() {
                           </tr>
                           {expandedRows.includes(idx) && (
                             <tr>
-                              <td colSpan={4} style={{ background: '#f6f6f6', padding: 16 }}>
+                              <td colSpan={4} style={{ background: '#1f0b0bff', padding: 16 }}>
                                 <div><strong>Headers:</strong> <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginBottom: 8 }}>{JSON.stringify(pb.headers, null, 2)}</pre></div>
                                 <div><strong>Body:</strong> <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{JSON.stringify(pb.body, null, 2)}</pre></div>
                               </td>
@@ -795,39 +795,39 @@ export default function Dashboard() {
         );
       case 'add-game':
         return (
-          <div style={{ maxWidth: 500, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 500, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Add Game</h2>
             <form onSubmit={handleGameFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <label>Title:<input name="title" value={gameForm.title} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc' }} /></label>
-              <label>Genre:<input name="genre" value={gameForm.genre} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc' }} /></label>
-              <label>Rating:<input name="rating" value={gameForm.rating} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc' }} /></label>
-              <label>Image Link:<input name="image" value={gameForm.image} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc' }} /></label>
-              <label>Final Link:<input name="link" value={gameForm.link} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc' }} /></label>
+              <label>Title:<input name="title" value={gameForm.title} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
+              <label>Genre:<input name="genre" value={gameForm.genre} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
+              <label>Rating:<input name="rating" value={gameForm.rating} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
+              <label>Image Link:<input name="image" value={gameForm.image} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
+              <label>Final Link:<input name="link" value={gameForm.link} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
               {gameFormError && <div style={{ color: 'red' }}>{gameFormError}</div>}
-              <button type="submit" disabled={gameFormLoading} style={{ padding: 10, borderRadius: 4, background: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold' }}>{gameFormLoading ? 'Submitting...' : 'Submit'}</button>
+              <button type="submit" disabled={gameFormLoading} style={{ padding: 10, borderRadius: 4, background: '#1976d2', color: '#000000', border: 'none', fontWeight: 'bold' }}>{gameFormLoading ? 'Submitting...' : 'Submit'}</button>
             </form>
           </div>
         );
       case 'api-access':
         return (
-          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Public API Access</h2>
             <p>
               You can fetch data from our public API endpoints. All endpoints require an API key in the <code>x-api-key</code> header. <b>API keys are not user-specific</b>—anyone can generate a random API key from the API Keys section. Each key is limited to <b>10 requests per day</b> (shared across all endpoints).
             </p>
-            <div style={{ background: '#f6f6f6', padding: 16, borderRadius: 6, margin: '18px 0' }}>
+            <div style={{ background: '#150a0aff', padding: 16, borderRadius: 6, margin: '18px 0' }}>
               <strong>Endpoints:</strong>
               <ul style={{ margin: '10px 0 0 0', padding: 0, listStyle: 'none' }}>
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/games</b><br />
                   <span style={{ color: '#888' }}>Returns all games.</span>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/games', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/games', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
   .then(data => console.log(data));`}</pre>
                   <strong>Example Response:</strong>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
   {
     "id": "1712345678901",
     "title": "Game Title",
@@ -843,13 +843,13 @@ export default function Dashboard() {
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/postbacks</b><br />
                   <span style={{ color: '#888' }}>Returns all received postbacks.</span>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/postbacks', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/postbacks', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
   .then(data => console.log(data));`}</pre>
                   <strong>Example Response:</strong>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
   {
     "receivedAt": "2024-06-01T12:00:00.000Z",
     "body": { ... },
@@ -862,13 +862,13 @@ export default function Dashboard() {
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/users</b><br />
                   <span style={{ color: '#888' }}>Returns a list of user stats (placeholder data).</span>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/users', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/users', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
   .then(data => console.log(data));`}</pre>
                   <strong>Example Response:</strong>
-                  <pre style={{ background: '#eee', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`[
   { "userId": "user1", "coins": 100, "level": 2, "completedTasks": 5 },
   { "userId": "user2", "coins": 250, "level": 4, "completedTasks": 20 },
   ...
@@ -880,77 +880,77 @@ export default function Dashboard() {
               <strong>Rate Limit:</strong>
               <div style={{ marginBottom: 8 }}>10 requests per API key per day (shared across all endpoints)</div>
             </div>
-            <div style={{ color: '#888', fontSize: 14, marginTop: 16 }}>
+            <div style={{ color: '#000000', fontSize: 14, marginTop: 16 }}>
               <strong>Note:</strong> If you exceed the rate limit, you will receive an error message and must wait until the next day to make more requests. All endpoints require a valid API key.
             </div>
           </div>
         );
       case 'api-keys':
         return (
-          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>API Keys</h2>
             <ApiKeysSection />
           </div>
         );
       case 'api-fetcher':
         return (
-          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>API Fetcher (Test & Preview)</h2>
             <ApiFetcherSection />
           </div>
         );
       case 'responses':
         return (
-          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Responses</h2>
             <ResponsesSection />
           </div>
         );
       case 'fetch-history':
         return (
-          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>API Fetch History</h2>
             <FetchHistorySection />
           </div>
         );
         case 'our-offer':
         return (
-          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>our Offer</h2>
             <OurOffer />
           </div>
         );
         case 'offer-schedular':
         return (
-          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Offer Schedular</h2>
             <OfferSchedularSection />
           </div>
         );
       case 'scheduled-offer':
         return (
-          <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Scheduled Offers</h2>
             <ShowingScheduledOffersSection />
           </div>
         );
         case 'proxy-checker':
           return (
-            <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+            <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
               <h2>Proxy Checker</h2>
               <ProxyCheckerSection />
             </div>
           );
       case 'email-config':
         return (
-          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Email Configuration</h2>
             <EmailConfigSection />
           </div>
         );
       case 'domain-checker':
         return (
-          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+          <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
             <h2>Domain Checker</h2>
             <DomainCheckerSection />
           </div>
@@ -1204,7 +1204,7 @@ function ApiKeysSection() {
           onChange={e => setNewKeyName(e.target.value)}
           style={{ padding: 8, borderRadius: 4, border: '1px solid #ccc', flex: 1 }}
         />
-        <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 18px', borderRadius: 4, background: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold' }}>
+        <button onClick={handleCreate} disabled={creating} style={{ padding: '8px 18px', borderRadius: 4, background: '#1976d2', color: '#000000', border: 'none', fontWeight: 'bold' }}>
           {creating ? 'Creating...' : 'Generate New API Key'}
         </button>
       </div>
@@ -1212,14 +1212,14 @@ function ApiKeysSection() {
       {error && <div style={{ color: 'red', marginBottom: 8 }}>{error}</div>}
       {keys.length === 0 && !loading && <div style={{ color: '#888' }}>No API keys yet.</div>}
       {keys.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafafa', marginTop: 12 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', background: '#0e0808ff', marginTop: 12 }}>
           <thead>
-            <tr style={{ background: '#f3f3f3' }}>
-              <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Name</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>API Key</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Created At</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Usage (Today)</th>
-              <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Actions</th>
+            <tr style={{ background: '#0e0909ff' }}>
+              <th style={{ padding: '8px', borderBottom: '1px solid #000000', textAlign: 'left' }}>Name</th>
+              <th style={{ padding: '8px', borderBottom: '1px solid #000000', textAlign: 'left' }}>API Key</th>
+              <th style={{ padding: '8px', borderBottom: '1px solid #000000', textAlign: 'left' }}>Created At</th>
+              <th style={{ padding: '8px', borderBottom: '1px solid #000000', textAlign: 'left' }}>Usage (Today)</th>
+              <th style={{ padding: '8px', borderBottom: '1px solid #000000', textAlign: 'left' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -1236,7 +1236,7 @@ function ApiKeysSection() {
                             type="text"
                             value={editingName}
                             onChange={e => setEditingName(e.target.value)}
-                            style={{ padding: 4, borderRadius: 4, border: '1px solid #ccc', width: 120 }}
+                            style={{ padding: 4, borderRadius: 4, border: '1px solid #000000', width: 120 }}
                           />
                           <button onClick={() => handleEditSave(k.key)} disabled={savingEdit} style={{ marginLeft: 4, color: '#1976d2', border: 'none', background: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Save</button>
                           <button onClick={handleEditCancel} style={{ marginLeft: 2, color: '#888', border: 'none', background: 'none', fontWeight: 'bold', cursor: 'pointer' }}>Cancel</button>
@@ -1258,13 +1258,13 @@ function ApiKeysSection() {
                   </tr>
                   {/* Usage history row */}
                   <tr>
-                    <td colSpan={5} style={{ background: '#f6f6f6', padding: 8 }}>
+                    <td colSpan={5} style={{ background: '#190f0fff', padding: 8 }}>
                       <div style={{ fontSize: 13, color: '#555', marginBottom: 4 }}>Usage (last 7 days):</div>
                       <table style={{ width: '100%', fontSize: 13, background: 'none' }}>
                         <thead>
                           <tr>
                             {last7Days.map(day => (
-                              <th key={day} style={{ padding: '2px 4px', color: '#888', fontWeight: 'normal' }}>{day.slice(5)}</th>
+                              <th key={day} style={{ padding: '2px 4px', color: '#000000', fontWeight: 'normal' }}>{day.slice(5)}</th>
                             ))}
                           </tr>
                         </thead>
@@ -1284,10 +1284,10 @@ function ApiKeysSection() {
           </tbody>
         </table>
       )}
-      <div style={{ marginTop: 32, background: '#f6f6f6', padding: 16, borderRadius: 6 }}>
+      <div style={{ marginTop: 32, background: '#1a0d0dff', padding: 16, borderRadius: 6 }}>
         <strong>How to use your API key:</strong>
         <div style={{ margin: '10px 0' }}>Include your API key in the <code>x-api-key</code> header when making requests to the public API endpoint:</div>
-        <pre style={{ background: '#222', color: '#fff', padding: 12, borderRadius: 6 }}>{`fetch('http://localhost:5000/api/public/games', {
+        <pre style={{ background: '#222', color: '#000000', padding: 12, borderRadius: 6 }}>{`fetch('http://localhost:5000/api/public/games', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
@@ -3150,26 +3150,26 @@ function ResponsesSection() {
           placeholder="Filter by UTM Source"
           value={filters.utm_source}
           onChange={e => setFilters(f => ({ ...f, utm_source: e.target.value }))}
-          style={{ padding: 6, borderRadius: 4, border: '1px solid #ccc', minWidth: 120 }}
+          style={{ padding: 6, borderRadius: 4, border: '1px solid #000000', minWidth: 120 }}
         />
         <input
           type="text"
           placeholder="Filter by UTM Medium"
           value={filters.utm_medium}
           onChange={e => setFilters(f => ({ ...f, utm_medium: e.target.value }))}
-          style={{ padding: 6, borderRadius: 4, border: '1px solid #ccc', minWidth: 120 }}
+          style={{ padding: 6, borderRadius: 4, border: '1px solid #000000', minWidth: 120 }}
         />
         <input
           type="text"
           placeholder="Filter by Location"
           value={filters.location}
           onChange={e => setFilters(f => ({ ...f, location: e.target.value }))}
-          style={{ padding: 6, borderRadius: 4, border: '1px solid #ccc', minWidth: 120 }}
+          style={{ padding: 6, borderRadius: 4, border: '1px solid #000000', minWidth: 120 }}
         />
       </div>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafafa' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#150e0eff' }}>
         <thead>
-          <tr style={{ background: '#f3f3f3' }}>
+          <tr style={{ background: '#1c1515ff' }}>
             <th style={{ padding: 8 }}>Time</th>
             <th style={{ padding: 8 }}>Game ID</th>
             <th style={{ padding: 8 }}>IP</th>
@@ -3637,7 +3637,7 @@ function OfferSchedularSection() {
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+    <div style={{ maxWidth: 900, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
       <h2 style={{ textAlign: 'center', marginBottom: 24 }}>Offer Scheduler</h2>
       {/* Offer Picker */}
       <div style={{ marginBottom: 18 }}>
@@ -3646,7 +3646,7 @@ function OfferSchedularSection() {
           {offers.map(offer => {
             const id = offer.id || offer.offer_id || offer._id;
             return (
-              <label key={id} style={{ border: '1px solid #ccc', borderRadius: 8, padding: 8, minWidth: 180, cursor: 'pointer', background: selectedOfferIds.includes(id) ? '#e6f0fa' : '#fafbfc' }}>
+              <label key={id} style={{ border: '1px solid #ccc', borderRadius: 8, padding: 8, minWidth: 180, cursor: 'pointer', background: selectedOfferIds.includes(id) ? '#15191eff' : '#090d11ff' }}>
                 <input
                   type="checkbox"
                   checked={selectedOfferIds.includes(id)}
@@ -3760,7 +3760,7 @@ function ProxyCheckerSection() {
   };
 
   return (
-    <div style={{ maxWidth: 500, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
+    <div style={{ maxWidth: 500, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
       <h2>Proxy Checker</h2>
       <div style={{ marginBottom: 12 }}>
         <label>
@@ -3782,7 +3782,7 @@ function ProxyCheckerSection() {
           />
         </label>
       </div>
-      <button onClick={handleCheck} disabled={loading || !url} style={{ padding: '6px 18px', borderRadius: 4, background: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold' }}>
+      <button onClick={handleCheck} disabled={loading || !url} style={{ padding: '6px 18px', borderRadius: 4, background: '#1976d2', color: '#000000', border: 'none', fontWeight: 'bold' }}>
         {loading ? 'Checking...' : 'Check Proxy'}
       </button>
       {result && (
@@ -3837,7 +3837,7 @@ function ShowingScheduledOffersSection() {
   }
 
   return (
-    <div style={{ maxWidth: 900, margin: "2rem auto", padding: 24, background: "#fff", borderRadius: 8, boxShadow: "0 2px 8px #eee" }}>
+    <div style={{ maxWidth: 900, margin: "2rem auto", padding: 24, background: "#000000", borderRadius: 8, boxShadow: "0 2px 8px #eee" }}>
       <h2 style={{ textAlign: "center", marginBottom: 24 }}>Scheduled Offers</h2>
       {loading ? (
         <div>Loading...</div>
@@ -3846,7 +3846,7 @@ function ShowingScheduledOffersSection() {
       ) : (
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ background: "#f0f4fa" }}>
+            <tr style={{ background: "#090b0eff" }}>
               <th>Offer</th>
               <th>Image</th>
               <th>External Link</th>
@@ -3918,9 +3918,9 @@ function FetchHistorySection() {
 
   return (
     <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fafafa' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#0e0909ff' }}>
         <thead>
-          <tr style={{ background: '#f3f3f3' }}>
+          <tr style={{ background: '#0e0909ff' }}>
             <th style={{ padding: 8 }}>Time</th>
             <th style={{ padding: 8 }}>Method</th>
             <th style={{ padding: 8 }}>URL</th>
