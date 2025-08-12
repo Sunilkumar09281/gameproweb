@@ -1365,20 +1365,57 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   const [addedOffers, setAddedOffers] = useState([]);
   const [loadingAddedOffers, setLoadingAddedOffers] = useState(true);
   const [addedOffersError, setAddedOffersError] = useState(null);
+  const [dynamicCategories, setDynamicCategories] = useState(gameCategories);
   
   useEffect(() => {
     let cancelled = false;
-    // const API_BASE = process.env.REACT_APP_API_BASE || ''; // set this or use proxy
     const url = 'http://localhost:5000/api/games';
-    // const url = `${API_BASE}/api/games`; // if you set proxy in package.json, just '/api/games' works
-
+    const defaultImage = 'https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg';
+  
+    const isGameItem = (it) => Boolean(it && (it.genre || it.rating || String(it.type).toLowerCase() === 'game'));
+    const getId = (it) => it?.id ?? it?.offer_id ?? it?._id ?? it?.title ?? JSON.stringify(it);
+  
     const fetchAddedOffers = async () => {
       setLoadingAddedOffers(true);
       try {
-        const res = await fetch(url, { credentials: 'include' }); // simple fetch
+        const res = await fetch(url, { credentials: 'include' });
         if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-        const data = await res.json();
-        if (!cancelled) setAddedOffers(data || []);
+        const data = (await res.json()) || [];
+        if (cancelled) return;
+      
+        // classify
+        const gamesItems = data.filter(isGameItem);
+        const offersItems = data.filter(it => !isGameItem(it));
+      
+        // set Added Offers to games (keeps existing behavior)
+        setAddedOffers(gamesItems.map(it => ({
+          ...it,
+          image: it.image || it.icon || defaultImage
+        })));
+      
+        // merge offers into the Gaming Offers category (dedupe by id)
+        setDynamicCategories(prev => prev.map(cat => {
+          if (cat.title !== 'Gaming Offers') return cat;
+          const existingIds = new Set(cat.games.map(g => String(g.id)));
+          const newOffers = offersItems
+            .filter(o => {
+              const id = getId(o);
+              return id && !existingIds.has(String(id));
+            })
+            .map(o => ({
+              id: getId(o),
+              type: o.type || 'OFFER',
+              title: o.title || o.name || 'Untitled Offer',
+              image: o.image || o.icon || defaultImage,
+              genre: o.genre || 'Unknown Genre',
+              rating: parseFloat(o.rating) || 0,
+              value: o.price || o.payout || o.default_payout || o.value || '',
+              condition: o.condition || o.trafficType || '',
+              fullDescription: o.description || o.details || ''
+            }));
+          return { ...cat, games: [...newOffers, ...cat.games] };
+        }));
+      
       } catch (err) {
         if (!cancelled) setAddedOffersError(err.message);
         console.error('Failed loading added offers:', err);
@@ -1386,10 +1423,11 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
         if (!cancelled) setLoadingAddedOffers(false);
       }
     };
-
+  
     fetchAddedOffers();
     return () => { cancelled = true; };
   }, []); // run once on mount
+ // run once on mount
   const handleShowButtonClick = (item, e) => {
     e.stopPropagation();
     setSelectedItem(item);
@@ -1431,7 +1469,8 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
     });
   }, [expandedSections]); // Re-run effect if expandedSections changes
 
-  const homePageSections = gameCategories;
+  const homePageSections = dynamicCategories;
+
 
   const premiumSurvey = initialTasks.find(task => task.id === 't_premium');
   const regularSurvey = initialTasks.find(task => task.id === 't_available_regular');
@@ -1764,7 +1803,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       marginBottom: 16,
     }}
   >
-    <h2 className="section-title-with-icon">Added Offers</h2>
+    <h2 className="section-title-with-icon">Added Games</h2>
     <button
       className="view-all-button"
       onClick={() =>
