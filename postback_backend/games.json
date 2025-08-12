@@ -195,5 +195,31 @@
     "status": "active",
     "expiration_date": null,
     "payout_type": "fixed"
+  },
+  {
+    "id": "1754974260208",
+    "title": "Audiobooks 30 day free trial_non incent US",
+    "genre": "",
+    "rating": "",
+    "link": "http://localhost:5000/go/7815",
+    "createdAt": "2025-08-12T04:51:00.208Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "cpa_flat"
+  },
+  {
+    "id": "1754974367201",
+    "title": "Audiobooks 30 day free trial_non incent US",
+    "genre": "",
+    "rating": "",
+    "link": "http://localhost:5000/go/7815",
+    "createdAt": "2025-08-12T04:52:47.201Z",
+    "default_payout": 0,
+    "monthly_conversion_cap": 0,
+    "status": "active",
+    "expiration_date": null,
+    "payout_type": "cpa_flat"
   }
 ]

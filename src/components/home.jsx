@@ -16,6 +16,7 @@ import { db } from "../firebase";
 // import { doc, getDoc, setDoc } from "firebase/firestore";
 // import { auth, provider } from "../firebase";
 // Login/Signup Modal Component
+
 const showContactMessage = () => {
   const messageBox = document.createElement('div');
   messageBox.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
@@ -1257,6 +1258,8 @@ function TasksListingPage({ onBack, initialCategory = 'all', handleProtectedClic
 
       {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} onViewLottery={() => setShowLotteryModal(true)} handleProtectedClick={handleProtectedClick} />}
       {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
+        
+
         <Footer />
     </div>
   );
@@ -1367,10 +1370,31 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   const [addedOffersError, setAddedOffersError] = useState(null);
   const [dynamicCategories, setDynamicCategories] = useState(gameCategories);
   
+  // 🔹 New states for backend offer modal
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [modalContent, setModalContent] = useState(null);
+
+  // 🔹 Move default image here so it works everywhere
+  const defaultImage = 'https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg';
+  const renderOfferDetails = (obj) => {
+  if (!obj) return null;
+// skip only technical fields we never want to show
+  const skip = ['id', 'image', 'isBackendOffer', 'gradient'];
+  return Object.entries(obj)
+    .filter(([k,v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
+    .map(([k,v]) => {
+      let display = v;
+      if (typeof v === 'object') display = Array.isArray(v) ? v.join(', ') : JSON.stringify(v);
+      if (/date|expire/i.test(k)) {
+        const d = new Date(v);
+        if (!isNaN(d.getTime())) display = d.toLocaleString();
+      }
+      return (<p key={k}><strong style={{color:'#aaa'}}>{k.replace(/([A-Z])/g,' $1')}: </strong>{String(display)}</p>);
+    });
+};
   useEffect(() => {
     let cancelled = false;
     const url = 'http://localhost:5000/api/games';
-    const defaultImage = 'https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg';
   
     const isGameItem = (it) => Boolean(it && (it.genre || it.rating || String(it.type).toLowerCase() === 'game'));
     const getId = (it) => it?.id ?? it?.offer_id ?? it?._id ?? it?.title ?? JSON.stringify(it);
@@ -1411,8 +1435,9 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
               rating: parseFloat(o.rating) || 0,
               value: o.price || o.payout || o.default_payout || o.value || '',
               condition: o.condition || o.trafficType || '',
-              fullDescription: o.description || o.details || ''
-            }));
+              fullDescription: o.description || o.details || '',
+              isBackendOffer: true   // ← ADD THIS FLAG
+            }))
           return { ...cat, games: [...newOffers, ...cat.games] };
         }));
       
@@ -1429,9 +1454,17 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   }, []); // run once on mount
  // run once on mount
   const handleShowButtonClick = (item, e) => {
-    e.stopPropagation();
+    if (e && e.stopPropagation) e.stopPropagation();
+    // backend-added offers -> show simple offer modal
+    if (item && item.isBackendOffer) {
+      setModalContent({ item });      // store the whole offer object
+      setShowOfferModal(true);
+      return;
+    }
+    // otherwise keep original behavior (games / default)
     setSelectedItem(item);
   };
+
 
   const scrollLeft = (title) => {
     const el = document.getElementById(`carousel-${title.replace(/\s/g, '-')}`);
@@ -1468,6 +1501,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       });
     });
   }, [expandedSections]); // Re-run effect if expandedSections changes
+  
 
   const homePageSections = dynamicCategories;
 
@@ -1475,6 +1509,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   const premiumSurvey = initialTasks.find(task => task.id === 't_premium');
   const regularSurvey = initialTasks.find(task => task.id === 't_available_regular');
   const lockedSurveys = initialTasks.filter(task => task.isLocked);
+  
 
   return (
      <div className="home-container">
@@ -1521,6 +1556,8 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                     </div>
                   ))}
                 </div>
+               
+
               ) : (
                 <div className="carousel-wrapper">
                   <button className="scroll-btn left" onClick={() => handleProtectedClick(() => scrollLeft(category.title))}>&lt;</button>
@@ -1791,245 +1828,264 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
       {/* ----------------- Added Offers ----------------- */}
      <section
-  className="game-section"
-  id="section-Added-Offers"
-  style={{ marginTop: 24 }}
->
-  <div
-    style={{
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "center",
-      marginBottom: 16,
-    }}
+  className="added-offers-section game-section"
+    id="section-Added-Offers"
+    style={{ marginTop: 24 }}
   >
-    <h2 className="section-title-with-icon">Added Games</h2>
-    <button
-      className="view-all-button"
-      onClick={() =>
-        setExpandedSections((prev) => ({
-          ...prev,
-          ["Added Offers"]: !prev["Added Offers"],
-        }))
-      }
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginBottom: 16,
+      }}
     >
-      {expandedSections["Added Offers"] ? "Show Less" : "View All"}
-    </button>
-  </div>
-
-  {loadingAddedOffers ? (
-    <div>Loading added offers…</div>
-  ) : addedOffersError ? (
-    <div className="text-red-500">Error loading offers: {addedOffersError}</div>
-  ) : addedOffers.length === 0 ? (
-    <div>No offers added yet.</div>
-  ) : (
-    <>
-      {expandedSections["Added Offers"] ? (
-        /* === GRID VIEW === */
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-            gap: "16px",
-          }}
-        >
-          {addedOffers.map((item) => {
-            const isGame = Boolean(item.genre || item.rating);
-            const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-
-            // Rating for games
-            const rawRating = parseFloat(item.rating);
-            let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-            ratingNum = Math.max(0, Math.min(5, ratingNum));
-            const filledStars = "★".repeat(Math.round(ratingNum));
-            const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-            const ratingDisplay = ratingNum.toFixed(1);
-
-            return (
-              <div
-                key={item.id ?? item.title ?? Math.random()}
-                style={{
-                  background: "#1e1e2f",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  color: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                }}
-              >
-                <img
-                  src={imgSrc}
-                  alt={item.name || item.title}
+      <h2 className="section-title-with-icon">Added Games</h2>
+      <button
+        className="view-all-button"
+        onClick={() =>
+          setExpandedSections((prev) => ({
+            ...prev,
+            ["Added Offers"]: !prev["Added Offers"],
+          }))
+        }
+      >
+        {expandedSections["Added Offers"] ? "Show Less" : "View All"}
+      </button>
+    </div>
+      
+    {loadingAddedOffers ? (
+      <div>Loading added offers…</div>
+    ) : addedOffersError ? (
+      <div className="text-red-500">Error loading offers: {addedOffersError}</div>
+    ) : addedOffers.length === 0 ? (
+      <div>No offers added yet.</div>
+    ) : (
+      <>
+        {expandedSections["Added Offers"] ? (
+          /* === GRID VIEW === */
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+              gap: "16px",
+            }}
+          >
+            {addedOffers.map((item) => {
+              const isGame = Boolean(item.genre || item.rating);
+              const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
+            
+              // Rating for games
+              const rawRating = parseFloat(item.rating);
+              let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+              ratingNum = Math.max(0, Math.min(5, ratingNum));
+              const filledStars = "★".repeat(Math.round(ratingNum));
+              const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
+              const ratingDisplay = ratingNum.toFixed(1);
+            
+              return (
+                <div
+                  key={item.id ?? item.title ?? Math.random()}
                   style={{
-                    width: "100%",
-                    height: "120px",
-                    objectFit: "cover",
+                    background: "#1e1e2f",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    color: "#fff",
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
                   }}
-                />
-                <div style={{ padding: "10px", flex: 1 }}>
-                  <p
+                >
+                  <img
+                    src={imgSrc}
+                    alt={item.name || item.title}
                     style={{
-                      fontWeight: "bold",
-                      color: "gold",
-                      fontSize: "15px",
-                      marginBottom: "6px",
+                      width: "100%",
+                      height: "120px",
+                      objectFit: "cover",
                     }}
-                  >
-                    {item.offerName || item.name || item.title || "Untitled Offer"}
-                  </p>
-
-                  {isGame ? (
-                    <>
-                      <p style={{ color: "#aaa", fontSize: "13px" }}>
-                        {item.genre || "Unknown Genre"}
-                      </p>
-                      <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                        {filledStars}
-                        {emptyStars} {ratingDisplay}
-                      </p>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                      {Object.entries(item)
-                        .filter(([key, val]) =>
-                          val &&
-                          !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                        )
-                        .map(([key, val]) => {
-                          let displayVal = val;
-                          if (
-                            key.toLowerCase().includes("date") ||
-                            key.toLowerCase().includes("expires")
-                          ) {
-                            const parsed = new Date(val);
-                            if (!isNaN(parsed.getTime())) {
-                              displayVal = parsed.toLocaleString();
+                  />
+                  <div style={{ padding: "10px", flex: 1 }}>
+                    <p
+                      style={{
+                        fontWeight: "bold",
+                        color: "gold",
+                        fontSize: "15px",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {item.offerName || item.name || item.title || "Untitled Offer"}
+                    </p>
+                    
+                    {isGame ? (
+                      <>
+                        <p style={{ color: "#aaa", fontSize: "13px" }}>
+                          {item.genre || "Unknown Genre"}
+                        </p>
+                        <p style={{ color: "#FFD700", fontSize: "13px" }}>
+                          {filledStars}
+                          {emptyStars} {ratingDisplay}
+                        </p>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
+                        {Object.entries(item)
+                          .filter(([key, val]) =>
+                            val &&
+                            !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                          )
+                          .map(([key, val]) => {
+                            let displayVal = val;
+                            if (
+                              key.toLowerCase().includes("date") ||
+                              key.toLowerCase().includes("expires")
+                            ) {
+                              const parsed = new Date(val);
+                              if (!isNaN(parsed.getTime())) {
+                                displayVal = parsed.toLocaleString();
+                              }
                             }
-                          }
-                          return (
-                            <p key={key}>
-                              <strong style={{ color: "#aaa" }}>
-                                {key.replace(/([A-Z])/g, " $1")}:{" "}
-                              </strong>
-                              {String(displayVal)}
-                            </p>
-                          );
-                        })}
-                    </div>
-                  )}
+                            return (
+                              <p key={key}>
+                                <strong style={{ color: "#aaa" }}>
+                                  {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                </strong>
+                                {String(displayVal)}
+                              </p>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          /* === HORIZONTAL SCROLL === */
+          <div
+            style={{
+              display: "flex",
+              overflowX: "auto",
+              gap: "16px",
+              paddingBottom: "10px",
+              scrollbarWidth: "thin",
+            }}
+          >
+            {addedOffers.slice(0, 12).map((item) => {
+              const isGame = Boolean(item.genre || item.rating);
+              const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
+            
+              const rawRating = parseFloat(item.rating);
+              let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+              ratingNum = Math.max(0, Math.min(5, ratingNum));
+              const filledStars = "★".repeat(Math.round(ratingNum));
+              const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
+              const ratingDisplay = ratingNum.toFixed(1);
+            
+              return (
+                <div
+                  key={item.id ?? item.title ?? Math.random()}
+                  style={{
+                    flex: "0 0 auto",
+                    width: "200px",
+                    background: "#1e1e2f",
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    color: "#fff",
+                    display: "flex",
+                    flexDirection: "column",
+                    height: "100%",
+                  }}
+                >
+                  <img
+                    src={imgSrc}
+                    alt={item.name || item.title}
+                    style={{
+                      width: "100%",
+                      height: "120px",
+                      objectFit: "cover",
+                    }}
+                  />
+                  <div style={{ padding: "10px", flex: 1 }}>
+                    <p
+                      style={{
+                        fontWeight: "bold",
+                        color: "gold",
+                        fontSize: "15px",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {item.offerName || item.name || item.title || "Untitled Offer"}
+                    </p>
+                    
+                    {isGame ? (
+                      <>
+                        <p style={{ color: "#aaa", fontSize: "13px" }}>
+                          {item.genre || "Unknown Genre"}
+                        </p>
+                        <p style={{ color: "#FFD700", fontSize: "13px" }}>
+                          {filledStars}
+                          {emptyStars} {ratingDisplay}
+                        </p>
+                      </>
+                    ) : (
+                      <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
+                        {Object.entries(item)
+                          .filter(([key, val]) =>
+                            val &&
+                            !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                          )
+                          .map(([key, val]) => {
+                            let displayVal = val;
+                            if (
+                              key.toLowerCase().includes("date") ||
+                              key.toLowerCase().includes("expires")
+                            ) {
+                              const parsed = new Date(val);
+                              if (!isNaN(parsed.getTime())) {
+                                displayVal = parsed.toLocaleString();
+                              }
+                            }
+                            return (
+                              <p key={key}>
+                                <strong style={{ color: "#aaa" }}>
+                                  {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                </strong>
+                                {String(displayVal)}
+                              </p>
+                            );
+                          })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </>
+    )}
+  </section>
+ {showOfferModal && modalContent?.item && (
+            <div className="modal-overlay" onClick={() => setShowOfferModal(false)}>
+              <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth:420}}>
+                <button className="modal-close-button" onClick={() => setShowOfferModal(false)}>&times;</button>
+                <img
+                  src={modalContent.item.image || defaultImage}
+                  alt={modalContent.item.title || modalContent.item.name}
+                  style={{width:'100%', borderRadius:8, marginBottom:12}}
+                />
+                <h2 style={{color:'gold', marginBottom:8}}>{modalContent.item.title || modalContent.item.name}</h2>
+                <div style={{maxHeight:300, overflowY:'auto', color:'#ccc', fontSize:14}}>
+                  {renderOfferDetails(modalContent.item)}
+                </div>
+                <div style={{textAlign:'center', marginTop:12}}>
+                  <button style={{background:'gold', border:'none', padding:'8px 14px', borderRadius:6, cursor:'pointer'}} onClick={() => setShowOfferModal(false)}>Close</button>
                 </div>
               </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* === HORIZONTAL SCROLL === */
-        <div
-          style={{
-            display: "flex",
-            overflowX: "auto",
-            gap: "16px",
-            paddingBottom: "10px",
-            scrollbarWidth: "thin",
-          }}
-        >
-          {addedOffers.slice(0, 12).map((item) => {
-            const isGame = Boolean(item.genre || item.rating);
-            const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-
-            const rawRating = parseFloat(item.rating);
-            let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-            ratingNum = Math.max(0, Math.min(5, ratingNum));
-            const filledStars = "★".repeat(Math.round(ratingNum));
-            const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-            const ratingDisplay = ratingNum.toFixed(1);
-
-            return (
-              <div
-                key={item.id ?? item.title ?? Math.random()}
-                style={{
-                  flex: "0 0 auto",
-                  width: "200px",
-                  background: "#1e1e2f",
-                  borderRadius: 12,
-                  overflow: "hidden",
-                  color: "#fff",
-                  display: "flex",
-                  flexDirection: "column",
-                  height: "100%",
-                }}
-              >
-                <img
-                  src={imgSrc}
-                  alt={item.name || item.title}
-                  style={{
-                    width: "100%",
-                    height: "120px",
-                    objectFit: "cover",
-                  }}
-                />
-                <div style={{ padding: "10px", flex: 1 }}>
-                  <p
-                    style={{
-                      fontWeight: "bold",
-                      color: "gold",
-                      fontSize: "15px",
-                      marginBottom: "6px",
-                    }}
-                  >
-                    {item.offerName || item.name || item.title || "Untitled Offer"}
-                  </p>
-
-                  {isGame ? (
-                    <>
-                      <p style={{ color: "#aaa", fontSize: "13px" }}>
-                        {item.genre || "Unknown Genre"}
-                      </p>
-                      <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                        {filledStars}
-                        {emptyStars} {ratingDisplay}
-                      </p>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                      {Object.entries(item)
-                        .filter(([key, val]) =>
-                          val &&
-                          !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                        )
-                        .map(([key, val]) => {
-                          let displayVal = val;
-                          if (
-                            key.toLowerCase().includes("date") ||
-                            key.toLowerCase().includes("expires")
-                          ) {
-                            const parsed = new Date(val);
-                            if (!isNaN(parsed.getTime())) {
-                              displayVal = parsed.toLocaleString();
-                            }
-                          }
-                          return (
-                            <p key={key}>
-                              <strong style={{ color: "#aaa" }}>
-                                {key.replace(/([A-Z])/g, " $1")}:{" "}
-                              </strong>
-                              {String(displayVal)}
-                            </p>
-                          );
-                        })}
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </>
-  )}
-</section>
+            </div>
+          )}
 
  <Footer />
     </div>
