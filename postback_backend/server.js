@@ -1152,3 +1152,28 @@ app.post('/api/check-proxy', async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Postback receiver server running on http://localhost:${PORT}`);
 });
+// Add a new game
+app.post('/api/games', async (req, res) => {
+  const { title, genre, rating, image, link } = req.body;
+  if (!title) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+  const games = await loadGames();
+  const newGame = {
+    id: Date.now().toString(),
+    title,
+    genre,
+    rating,
+    image,
+    link,
+    createdAt: new Date().toISOString(),
+    default_payout: req.body.default_payout || 0,
+    monthly_conversion_cap: req.body.monthly_conversion_cap || 0,
+    status: req.body.status || 'active',
+    expiration_date: req.body.expiration_date || null,
+    payout_type: req.body.payout_type || 'fixed'
+  };
+  games.push(newGame);
+  await saveGames(games);
+  res.status(201).json(newGame);
+});

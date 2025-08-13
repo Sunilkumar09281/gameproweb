@@ -12,6 +12,12 @@ import DashboardPage from './Dashboard.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+const truncate = (str) => {
+  if (!str) return '';
+  const words = str.split(' ');
+  const half = Math.ceil(words.length / 2);
+  return words.slice(0, half).join(' ');
+};
 // import { signInWithPopup } from "firebase/auth";
 // import { doc, getDoc, setDoc } from "firebase/firestore";
 // import { auth, provider } from "../firebase";
@@ -828,6 +834,8 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
         {task.isPremium ? (
           <>
             <h3 className="task-card-title">{task.shortTitle || task.title}</h3>
+
+
             <p className="task-card-condition">{task.displayCondition}</p>
             <div className="task-card-value-and-stars">
                 <p className="task-card-value">{task.displayValue}</p>
@@ -836,7 +844,13 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
           </>
         ) : (
           <>
-            <h3 className="task-card-title">{task.shortTitle || task.title}</h3>
+            <h3
+                className="task-card-title offer-title"
+                title={task.title}                       // shows full title on hover
+              >
+                {task.shortTitle || task.title}
+              </h3>
+                      
             <div className="task-card-value-and-stars">
                 <p className="task-card-value">{task.displayValue}</p>
                 {renderStars(task.starRating)}
@@ -922,7 +936,9 @@ function GameCardComponent({ game, cardSize, gradient, handleShowButtonClick, ha
         <img src={getIconSrc(game.type)} alt={game.type} className="game-type-icon" onError={(e) => e.target.src = 'https://placehold.co/16x16/808080/FFFFFF?text=X'} />
       </div> */}
       <div className="game-details-main">
-        <h3 className="game-title-overlay">{game.title}</h3>
+       <h3 className="game-title-overlay" title={game.title}> {game.shortTitle || truncate(game.title)} </h3>
+
+              
         <p className="game-value-overlay">{game.value}</p>
         <p className="game-condition-overlay">{game.condition}</p>
       </div>
@@ -1376,22 +1392,28 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
 
   // 🔹 Move default image here so it works everywhere
   const defaultImage = 'https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg';
-  const renderOfferDetails = (obj) => {
+ const renderOfferDetails = (obj) => {
   if (!obj) return null;
-// skip only technical fields we never want to show
   const skip = ['id', 'image', 'isBackendOffer', 'gradient'];
   return Object.entries(obj)
-    .filter(([k,v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
-    .map(([k,v]) => {
+    .filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
+    .map(([k, v]) => {
       let display = v;
       if (typeof v === 'object') display = Array.isArray(v) ? v.join(', ') : JSON.stringify(v);
       if (/date|expire/i.test(k)) {
         const d = new Date(v);
         if (!isNaN(d.getTime())) display = d.toLocaleString();
       }
-      return (<p key={k}><strong style={{color:'#aaa'}}>{k.replace(/([A-Z])/g,' $1')}: </strong>{String(display)}</p>);
+      // ✅ Rename "value" key to "Price" in popup
+      const label = k === 'value' ? 'Price' : k.replace(/([A-Z])/g, ' $1');
+      return (
+        <p key={k}>
+          <strong style={{ color: '#aaa' }}>{label}: </strong>{String(display)}
+        </p>
+      );
     });
 };
+
   useEffect(() => {
     let cancelled = false;
     const url = 'http://localhost:5000/api/games';
@@ -1426,20 +1448,28 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
               const id = getId(o);
               return id && !existingIds.has(String(id));
             })
-            .map(o => ({
-              id: getId(o),
-              type: o.type || 'OFFER',
-              title: o.title || o.name || 'Untitled Offer',
-              image: o.image || o.icon || defaultImage,
-              genre: o.genre || 'Unknown Genre',
-              rating: parseFloat(o.rating) || 0,
-              value: o.price || o.payout || o.default_payout || o.value || '',
-              condition: o.condition || o.trafficType || '',
-              fullDescription: o.description || o.details || '',
-              isBackendOffer: true   // ← ADD THIS FLAG
-            }))
-          return { ...cat, games: [...newOffers, ...cat.games] };
-        }));
+            
+   .map(o => {
+      console.log("Backend offer data:", o); // 🔍 ADD THIS LINE
+
+      return {
+        ...o,
+        id: getId(o),
+        type: o.type || 'OFFER',
+        title: o.title || o.name || 'Untitled Offer',
+        image: o.image || o.icon || defaultImage,
+        genre: o.genre || 'Unknown Genre',
+        price: o.price || o.payout || o.default_payout || '',
+        rating: parseFloat(o.rating) || 0,
+        value: o.price || o.payout || o.default_payout || o.value || '',
+        condition: o.condition || o.trafficType || '',
+        fullDescription: o.description || o.details || '',
+        isBackendOffer: true
+      };
+    });
+
+  return { ...cat, games: [...cat.games, ...newOffers] };
+}));
       
       } catch (err) {
         if (!cancelled) setAddedOffersError(err.message);
@@ -2067,26 +2097,64 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       </>
     )}
   </section>
- {showOfferModal && modalContent?.item && (
-            <div className="modal-overlay" onClick={() => setShowOfferModal(false)}>
-              <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{maxWidth:420}}>
-                <button className="modal-close-button" onClick={() => setShowOfferModal(false)}>&times;</button>
-                <img
-                  src={modalContent.item.image || defaultImage}
-                  alt={modalContent.item.title || modalContent.item.name}
-                  style={{width:'100%', borderRadius:8, marginBottom:12}}
-                />
-                <h2 style={{color:'gold', marginBottom:8}}>{modalContent.item.title || modalContent.item.name}</h2>
-                <div style={{maxHeight:300, overflowY:'auto', color:'#ccc', fontSize:14}}>
-                  {renderOfferDetails(modalContent.item)}
-                </div>
-                <div style={{textAlign:'center', marginTop:12}}>
-                  <button style={{background:'gold', border:'none', padding:'8px 14px', borderRadius:6, cursor:'pointer'}} onClick={() => setShowOfferModal(false)}>Close</button>
-                </div>
-              </div>
-            </div>
-          )}
-
+  {showOfferModal && modalContent?.item && (
+    <div className="modal-overlay" onClick={() => setShowOfferModal(false)}>
+      <div
+        className="modal-content"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: 700, // smaller popup width
+          padding: 20,
+          borderRadius: 10,
+          display: 'flex',
+          flexDirection: 'row', // image left, details right
+          gap: 20
+        }}
+      >
+        {/* Left - Image */}
+        <div style={{ flex: '0 0 250px' }}>
+          <img
+            src={modalContent.item.image || defaultImage}
+            alt={modalContent.item.title || modalContent.item.name}
+            style={{
+              width: '100%',
+              borderRadius: 8,
+              objectFit: 'cover'
+            }}
+          />
+        </div>
+          
+        {/* Right - Details */}
+        <div style={{ flex: 1, color: '#ccc', fontSize: 14 }}>
+          <h2 style={{ color: 'gold', marginBottom: 8 }}>
+            {modalContent.item.title || modalContent.item.name}
+          </h2>
+          <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 12 }}>
+            {Object.entries(modalContent.item).map(([key, value]) => (
+              value && key !== 'image' && (
+                <p key={key}>
+                  <strong>{key}:</strong> {value}
+                </p>
+              )
+            ))}
+          </div>
+          <button
+            style={{
+              background: '#294f9cff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: 6,
+              cursor: 'pointer'
+            }}
+            onClick={() => setShowOfferModal(false)}
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+  
  <Footer />
     </div>
   );

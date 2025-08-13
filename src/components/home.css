@@ -2474,3 +2474,30 @@ body {
   justify-content: space-between; /* ✅ this pushes amount to the right */
   align-items: center;
 }
+/* Fix for even spacing and consistent card size in View All mode */
+.game-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  justify-items: center;
+}
+
+.game-cards-grid .gradient-card-wrapper {
+  width: 100%;
+  max-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* Force wider modal for this project (add at BOTTOM of home.css) */
+.modal-overlay .modal-content,
+.item-modal {
+  background-color: #0f1124;
+  width: 94% !important;
+  max-width: 1100px !important;
+  grid-template-columns: 1fr 520px !important; /* left image/content + right rewards column fixed */
+  gap: 24px !important;
+  overflow: auto !important; /* allow internal scrolling */
+}
+/* Truncate long offer/game/survey titles in the cards (single line with ellipsis) */
+

@@ -294,8 +294,7 @@ export default function Dashboard() {
       navigate('/SupportPage'); // Navigate to the SupportPage route
     } else if (view === 'task') {
       navigate('/task'); 
-    } else if (view === 'home') {
-      navigate('/home'); 
+    
     } else if (view === 'profile') {
       navigate('/profile');  // Navigate to the Profile page (assuming settings is profile)
     } else if (view === 'condition') {
@@ -988,9 +987,7 @@ export default function Dashboard() {
       <aside className="sidebar">
         <div className="logo">Game<span>Pro</span></div>
         <ul>
-          <li className={location.pathname === '/home' ? 'active' : ''} onClick={() => handleNavigationClick('home')}>
-            Home
-          </li>
+          
           <li className={currentView === 'dashboard' ? 'active' : ''} onClick={() => handleNavigationClick('dashboard')}>Dashboard</li>
           {/* Removed 'Games' from here */}
           
