@@ -1,14 +1,5 @@
 [
   {
-    "id": "1752574302550",
-    "title": "diablo",
-    "genre": "role playing",
-    "rating": "8.9",
-    "image": "https://www.google.com/imgres?q=diablo&imgurl=https%3A%2F%2Fblz-contentstack-images.akamaized.net%2Fv3%2Fassets%2Fbltf408a0557f4e4998%2Fblt63ee63d378619ce9%2F67ed8cb72fa2eeb2510a80f1%2FDIA_D3_Bnet_Patch2.7.8_Textless_1920x1080.png&imgrefurl=https%3A%2F%2Fus.shop.battle.net%2Fen-us%2Fproduct%2Fdiablo-iii-ros&docid=TvX434YcV9Nm5M&tbnid=WpyVdiIWnblxRM&vet=12ahUKEwjaiOj4z76OAxWYRWcHHXDwJCUQM3oECBgQAA..i&w=1920&h=1080&hcb=2&ved=2ahUKEwjaiOj4z76OAxWYRWcHHXDwJCUQM3oECBgQAA",
-    "link": "https://diablo4.blizzard.com/en-us/",
-    "createdAt": "2025-07-15T10:11:42.550Z"
-  },
-  {
     "id": "1752576809975",
     "title": "DREDGE",
     "genre": "fishing adventure",
@@ -197,42 +188,31 @@
     "payout_type": "fixed"
   },
   {
-    "id": "1754974260208",
-    "title": "Audiobooks 30 day free trial_non incent US",
+    "id": "1755065605583",
+    "title": "6782 | Weightworchen| Weight Watchers - ",
     "genre": "",
     "rating": "",
-    "link": "http://localhost:5000/go/7815",
-    "createdAt": "2025-08-12T04:51:00.208Z",
+    "image": "",
+    "link": "",
+    "createdAt": "2025-08-13T06:13:25.583Z",
     "default_payout": 0,
     "monthly_conversion_cap": 0,
     "status": "active",
     "expiration_date": null,
-    "payout_type": "cpa_flat"
+    "payout_type": "fixed"
   },
   {
-    "id": "1754974367201",
-    "title": "Audiobooks 30 day free trial_non incent US",
+    "id": "1755065841192",
+    "title": "eo BRZE acu prscran- Win$25000 Cash CPLS",
     "genre": "",
     "rating": "",
-    "link": "http://localhost:5000/go/7815",
-    "createdAt": "2025-08-12T04:52:47.201Z",
+    "image": "",
+    "link": "",
+    "createdAt": "2025-08-13T06:17:21.192Z",
     "default_payout": 0,
     "monthly_conversion_cap": 0,
     "status": "active",
     "expiration_date": null,
-    "payout_type": "cpa_flat"
-  },
-  {
-    "id": "1755001910571",
-    "title": "Livra Surveys_Incent MX",
-    "genre": "",
-    "rating": "",
-    "link": "http://localhost:5000/go/668",
-    "createdAt": "2025-08-12T12:31:50.571Z",
-    "default_payout": 0,
-    "monthly_conversion_cap": 0,
-    "status": "active",
-    "expiration_date": null,
-    "payout_type": "cpa_flat"
+    "payout_type": "fixed"
   }
 ]

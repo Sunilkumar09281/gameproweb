@@ -3324,23 +3324,19 @@ const [proxyResults, setProxyResults] = useState({});
     );
     for (const offer of selected) {
       await fetch('http://localhost:5000/api/games', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: offer.id || offer.offer_id || offer._id,
-          title: offer.title || offer.name || offer.id,
-          image: offer.image,
-          description: offer.description || '',
-          link: `http://localhost:5000/go/${offer.id || offer.offer_id || offer._id}`,
-          preview_url: offer.preview_url || offer.link,
-          genre: offer.genre || '',
-          rating: offer.rating || '',
-          traffic_type: offer.traffic_type || '',
-          countries: offer.countries || [],
-          payout: offer.default_payout ? (offer.default_payout * 0.5).toFixed(2) : '',
-          payout_type: offer.payout_type || '',
-        }),
-      });
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    ...offer,
+    id: offer.id || offer.offer_id || offer._id,
+    title: offer.title || offer.name || 'Untitled Offer',
+    payout: offer.payout
+      ? parseFloat(offer.payout).toFixed(2)
+      : ''
+  }),
+});
+
+
     }
     alert('Selected offers have been added to games.json! Go to Home to see them.');
     setSelectedOffers([]);
@@ -3516,7 +3512,11 @@ const [proxyResults, setProxyResults] = useState({});
             rating: offer.rating || '',
             traffic_type: offer.traffic_type || '',
             countries: offer.countries || [],
-            payout: offer.default_payout ? (offer.default_payout * 0.5).toFixed(2) : '',
+            payout: offer.payout
+            ? parseFloat(offer.payout).toFixed(2)
+            : '',
+
+
             payout_type: offer.payout_type || '',
           }),
           });

@@ -12,16 +12,13 @@ import DashboardPage from './Dashboard.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+
 const truncate = (str) => {
   if (!str) return '';
   const words = str.split(' ');
   const half = Math.ceil(words.length / 2);
-  return words.slice(0, half).join(' ');
+  return words.slice(0, half).join(' ');
 };
-// import { signInWithPopup } from "firebase/auth";
-// import { doc, getDoc, setDoc } from "firebase/firestore";
-// import { auth, provider } from "../firebase";
-// Login/Signup Modal Component
 
 const showContactMessage = () => {
   const messageBox = document.createElement('div');
@@ -37,8 +34,8 @@ const showContactMessage = () => {
 };
 
 function LoginSignupModal({ onClose, onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true); // true for login, false for signup
-  const [isAdminSignup, setIsAdminSignup] = useState(false); // New state for admin signup
+  const [isLogin, setIsLogin] = useState(true);
+  const [isAdminSignup, setIsAdminSignup] = useState(false);
 
   const handleAuthAction = async (e) => {
     e.preventDefault();
@@ -48,20 +45,18 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
 
     try {
       if (isLogin) {
-        // LOGIN FLOW
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
         const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
         const isAdmin = userDoc.exists() && userDoc.data().isAdmin === true;
 
-        onLoginSuccess(isAdmin); // ✅ Set admin state
+        onLoginSuccess(isAdmin);
       } else {
-        // SIGNUP FLOW
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
         await setDoc(doc(db, "users", user.uid), {
           email: user.email,
-          isAdmin: isAdminSignup, // ✅ Save admin flag
+          isAdmin: isAdminSignup,
           createdAt: new Date()
         });
 
@@ -75,7 +70,6 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
     }
   };
 
-
   const handleGoogleLogin = async () => {
     try {
       const result = await signInWithPopup(auth, provider);
@@ -87,7 +81,6 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
       let isAdmin = false;
 
       if (!userDoc.exists()) {
-        // First-time Google user — save with isAdminSignup value
         await setDoc(userRef, {
           email: user.email,
           isAdmin: isAdminSignup,
@@ -95,7 +88,6 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
         });
         isAdmin = isAdminSignup;
       } else {
-        // Returning user — get saved admin status
         isAdmin = userDoc.data().isAdmin === true;
       }
 
@@ -104,7 +96,6 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
     } catch (error) {
       console.error("Google login failed", error);
 
-      // Display custom error popup
       const messageBox = document.createElement('div');
       messageBox.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
       messageBox.innerHTML = `
@@ -117,6 +108,7 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
       document.body.appendChild(messageBox);
     }
   };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm relative">
@@ -169,18 +161,6 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
                   required
                 />
               </div>
-              {/* <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="admin-signup"
-                  checked={isAdminSignup}
-                  onChange={(e) => setIsAdminSignup(e.target.checked)}
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label htmlFor="admin-signup" className="ml-2 block text-sm text-gray-900 dark:text-gray-300">
-                  Login as Admin
-                </label>
-              </div> */}
             </>
           )}
           <button
@@ -199,40 +179,21 @@ function LoginSignupModal({ onClose, onLoginSuccess }) {
           >
             {isLogin ? 'Sign Up' : 'Login'}
           </button>
-          {/* <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              className="w-full flex items-center justify-center bg-white text-black font-medium border border-gray-300 rounded-md shadow-md py-2 px-4 hover:bg-gray-100"
-            >
-              <img
-                src="https://upload.wikimedia.org/wikipedia/commons/5/53/Google_%22G%22_Logo.svg"
-                alt="Google Logo"
-                className="w-5 h-5 mr-2"
-              />
-              Continue with Google
-            </button>
-          </div> */}
-
         </p>
       </div>
     </div>
   );
 }
 
-// Profile Detail Modal Component
 function ProfileDetailModal({ onClose, userName, userBalance, userAvatar, onAddBalance, onWithdrawBalance }) {
   const canWithdraw = userBalance >= 10;
 
   const handleAddClick = () => {
-    // Removed the automatic addition of $10.
-    // In a real application, this button would trigger a payment gateway or similar.
     console.log("Add button clicked. Implement actual add money logic here.");
     onClose();
   };
 
   const handleWithdrawClick = () => {
-    // Simulate withdrawing $10 for demonstration
     if (canWithdraw) {
       onWithdrawBalance(10);
       onClose();
@@ -289,8 +250,6 @@ function ProfileDetailModal({ onClose, userName, userBalance, userAvatar, onAddB
   );
 }
 
-
-// Reusable renderStars function
 const renderStars = (rating) => {
   if (rating === null) return null;
   const fullStars = Math.floor(rating);
@@ -310,11 +269,9 @@ const renderStars = (rating) => {
   return <div className="task-card-stars">{stars}</div>;
 };
 
-// Gradient Definitions
 const gradient1 = 'linear-gradient(to bottom right, #d400ffff, #00C0FF)';
 const gradient2 = 'linear-gradient(to bottom right, #00BFFF, #32CD32, #FFD700)';
 
-// Data for Offer Partners
 const offerPartners = [
   { id: 'timewall', name: 'TimeWall', image: 'https://placehold.co/60x60/4CAF50/FFFFFF?text=TW', rating: 4.8, bonusPercentage: 20, backgroundImage: '/imgs.jpg' },
   { id: 'torox', name: 'Torox', image: 'https://placehold.co/60x60/00BFFF/FFFFFF?text=TRX', rating: 4.5, bonusPercentage: 20, backgroundImage: '/img2.jpg' },
@@ -328,7 +285,6 @@ const offerPartners = [
   { id: 'bitlabs-offer', name: 'Bitlabs', image: 'https://placehold.co/60x60/FF8C00/FFFFFF?text=BL', rating: 4.0, bonusPercentage: 50, backgroundImage: '/imgs.jpg' },
 ];
 
-// Data for the game categories
 const gameCategories = [
   {
     title: 'Gaming Offers',
@@ -336,12 +292,12 @@ const gameCategories = [
     cardSize: 'large',
     gradient: gradient1,
     games: [
-      { id: 1, type: 'GAME', title: 'Summer Break', genre: 'Role Playing', rating: '4.9', image: '/app.jpeg', value: '$5.62', condition: 'Reach level 50', url: 'https://www.towerofgod.com/', fullDescription: 'A popular mobile RPG based on the webtoon. Dive into the world of the Tower and challenge its floors. Earn rewards by reaching specific levels and completing story acts.', completionSteps: ['Download & Install', 'Complete Tutorial', 'Reach Level 50'] },
-      { id: 2, type: 'GAME', title: 'Ever Legion', genre: 'Role Playing', rating: '4.4', image: '/ba.jpeg', value: '$3.30', condition: 'Complete Act 3', url: 'https://www.browndust2.com/', fullDescription: 'A tactical turn-based RPG with stunning anime-style graphics. Collect unique characters and build your ultimate team. This task requires completing the main story up to Act 3.', completionSteps: ['Download & Install', 'Complete Act 1', 'Complete Act 2', 'Complete Act 3'] },
+      { id: 1, type: 'GAME', title: 'Summer Break', genre: 'Role Playing', rating: '4.9', image: '/app.jpg', value: '$5.62', condition: 'Reach level 50', url: 'https://www.towerofgod.com/', fullDescription: 'A popular mobile RPG based on the webtoon. Dive into the world of the Tower and challenge its floors. Earn rewards by reaching specific levels and completing story acts.', completionSteps: ['Download & Install', 'Complete Tutorial', 'Reach Level 50'] },
+      { id: 2, type: 'GAME', title: 'Ever Legion', genre: 'Role Playing', rating: '4.4', image: '/ba.jpg', value: '$3.30', condition: 'Complete Act 3', url: 'https://www.browndust2.com/', fullDescription: 'A tactical turn-based RPG with stunning anime-style graphics. Collect unique characters and build your ultimate team. This task requires completing the main story up to Act 3.', completionSteps: ['Download & Install', 'Complete Act 1', 'Complete Act 2', 'Complete Act 3'] },
       { id: 3, type: 'GAME', title: 'Colorwood Sort', genre: 'Role Playing', rating: '4.6', image: '/bes.jpeg', value: '$6.02', condition: 'Defeat Calamity', url: 'https://wutheringwaves.kurogames.com/', fullDescription: 'An open-world action RPG with a vast world to explore and challenging bosses. Master unique combat styles and uncover the mysteries of this post-apocalyptic world. Defeat the Calamity boss to earn this reward.', completionSteps: ['Download & Install', 'Reach designated area', 'Defeat Calamity Boss'] },
       { id: 4, type: 'GAME', title: 'Smash Party', genre: 'Action RPG', rating: '4.7', image: '/call.jpeg', value: '$11.59', condition: 'Unlock Inazuma', url: 'https://genshin.hoyoverse.com/', fullDescription: 'Explore the vast open world of Teyvat, solve puzzles, and engage in elemental combat. This task requires you to progress through the main story until you unlock the Inazuma region.', completionSteps: ['Download & Install', 'Complete Archon Quests', 'Unlock Inazuma Region'] },
-      { id: 5, type: 'GAME', title: 'Sea Block 1010', genre: 'Turn-based RPG', rating: '4.8', image: '/civi.jpeg', value: '$3.02', condition: 'Clear Forgotten Hall', url: 'https://hsr.hoyoverse.com/', fullDescription: 'Embark on an interstellar journey aboard the Astral Express in this turn-based RPG. Strategize your team and clear the challenging Forgotten Hall content to earn your reward.', completionSteps: ['Download & Install', 'Reach Equilibrium Level 2', 'Clear Forgotten Hall Stage 1'] },
-      { id: 11, type: 'GAME', title: 'Multi Dice', genre: 'Battle Royale', rating: '4.2', image: '/dead.jpeg', value: '$26.00', condition: 'Win 5 matches', url: 'https://pubgmobile.com/', fullDescription: 'Jump into intense battle royale action. Survive against 99 other players to be the last one standing. Win 5 classic matches to complete this task.', completionSteps: ['Download & Install', 'Complete 5 Classic Matches', 'Achieve 5 Wins'] },
+      { id: 5, type: 'GAME', title: 'Sea Block 1010', genre: 'Turn-based RPG', rating: '4.8', image: '/civi.jpg', value: '$3.02', condition: 'Clear Forgotten Hall', url: 'https://hsr.hoyoverse.com/', fullDescription: 'Embark on an interstellar journey aboard the Astral Express in this turn-based RPG. Strategize your team and clear the challenging Forgotten Hall content to earn your reward.', completionSteps: ['Download & Install', 'Reach Equilibrium Level 2', 'Clear Forgotten Hall Stage 1'] },
+      { id: 11, type: 'GAME', title: 'Multi Dice', genre: 'Battle Royale', rating: '4.2', image: '/dead.jpg', value: '$26.00', condition: 'Win 5 matches', url: 'https://pubgmobile.com/', fullDescription: 'Jump into intense battle royale action. Survive against 99 other players to be the last one standing. Win 5 classic matches to complete this task.', completionSteps: ['Download & Install', 'Complete 5 Classic Matches', 'Achieve 5 Wins'] },
       { id: 12, type: 'GAME', title: 'Vegas Keno by...', genre: 'Battle Royale', rating: '4.3', image: '/dia.jpeg', value: '$48.11', condition: 'Get 10 kills', url: 'https://ff.garena.com/', fullDescription: 'A fast-paced battle royale experience optimized for mobile. Land, loot, and eliminate opponents. Get a total of 10 kills across multiple matches to earn your reward.', completionSteps: ['Download & Install', 'Play Matches', 'Achieve 10 Kills'] },
     ]
   },
@@ -351,15 +307,14 @@ const gameCategories = [
     cardSize: 'small',
     gradient: gradient2,
     games: [
-        { id: 101, type: 'APP', title: 'Alibaba.com', genre: 'Shopping', rating: '4.0', image: '/epi.jpeg', value: '$0.21', condition: 'Register & Browse', url: '#', fullDescription: 'Sign up for Alibaba.com and browse through 5 product categories.', completionSteps: ['Register', 'Browse 5 categories'] },
-        { id: 102, type: 'APP', title: 'Catalyse Resea..', genre: 'Research', rating: '4.1', image: '/fact.jpeg', value: '$0.24', condition: 'Complete 1 survey', url: '#', fullDescription: 'Complete your first survey on Catalyse Research platform.', completionSteps: ['Sign Up', 'Complete 1 survey'] },
-        { id: 103, type: 'APP', title: 'Mintalise', genre: 'Health', rating: '3.8', image: '/g2.jpeg', value: '$0.04', condition: 'Install & Open', url: '#', fullDescription: 'Install the Mintalise app and open it for the first time.', completionSteps: ['Install App', 'Open App'] },
-        { id: 104, type: 'APP', title: 'Vegas Keno by...', genre: 'Casino', rating: '4.2', image: '/g3.jpeg', value: '$48.11', condition: 'Reach Level 10', url: '#', fullDescription: 'Play Vegas Keno and reach level 10 to earn your reward.', completionSteps: ['Install App', 'Play Game', 'Reach Level 10'] },
+        { id: 101, type: 'APP', title: 'Alibaba.com', genre: 'Shopping', rating: '4.0', image: '/epi.jpg', value: '$0.21', condition: 'Register & Browse', url: '#', fullDescription: 'Sign up for Alibaba.com and browse through 5 product categories.', completionSteps: ['Register', 'Browse 5 categories'] },
+        { id: 102, type: 'APP', title: 'Catalyse Resea..', genre: 'Research', rating: '4.1', image: '/fact.jpg', value: '$0.24', condition: 'Complete 1 survey', url: '#', fullDescription: 'Complete your first survey on Catalyse Research platform.', completionSteps: ['Sign Up', 'Complete 1 survey'] },
+        { id: 103, type: 'APP', title: 'Mintalise', genre: 'Health', rating: '3.8', image: '/g2.jpg', value: '$0.04', condition: 'Install & Open', url: '#', fullDescription: 'Install the Mintalise app and open it for the first time.', completionSteps: ['Install App', 'Open App'] },
+        { id: 104, type: 'APP', title: 'Vegas Keno by...', genre: 'Casino', rating: '4.2', image: '/g3.jpg', value: '$48.11', condition: 'Reach Level 10', url: '#', fullDescription: 'Play Vegas Keno and reach level 10 to earn your reward.', completionSteps: ['Install App', 'Play Game', 'Reach Level 10'] },
     ]
   },
 ];
 
-// Adjust initialTasks for Featured Surveys
 const initialTasks = [
   {
     id: 't_premium',
@@ -432,7 +387,6 @@ const initialTasks = [
   })),
 ];
 
-// Task categories for the filter dropdown
 const categories = [
   { id: 'all', name: 'All Tasks' },
   { id: 'surveys', name: 'Surveys' },
@@ -441,7 +395,6 @@ const categories = [
   { id: 'watch-videos', name: 'Watch Videos' },
 ];
 
-// New LotteryModal Component
 function LotteryDetailModal({ onClose }) {
   const [activeTab, setActiveTab] = useState('prizes');
   const [timeLeft, setTimeLeft] = useState('');
@@ -633,21 +586,42 @@ function LotteryDetailModal({ onClose }) {
   );
 }
 
-// Modal Component
+// Updated ItemDetailModal Component with new design
 function ItemDetailModal({ item, onClose, onViewLottery, handleProtectedClick }) {
   if (!item) return null;
 
-  // Mock data for rewards to match screenshot
+  // Mock data for rewards to match the new design
   const itemRewards = [
-    { type: 'lottery', label: 'Complete Level 5', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/8A2BE2/FFFFFF?text=P1' },
-    { type: 'task', label: 'Newr pu tegeR', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/4CAF50/FFFFFF?text=P2' },
-    { type: 'task', label: 'Sant ora ercidatios', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/C71585/FFFFFF?text=P3' },
-    { type: 'task', label: 'Defeat 10 Enemies', value: '95 Coins', tickets: '', image: 'https://placehold.co/30x30/00C0FF/FFFFFF?text=P4' },
-    { type: 'task', label: 'Yourplie cooine 10 Scoips', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/8A2BE2/FFFFFF?text=P5' },
-    { type: 'task', label: 'Defeat 10 Enemies', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/4CAF50/FFFFFF?text=P6' },
-    { type: 'task', label: 'Sourplodden yourands', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/C71585/FFFFFF?text=P7' },
-    { type: 'task', label: 'Complete', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/00C0FF/FFFFFF?text=P8' },
-    { type: 'task', label: 'Vourpuetand inntedreds', value: '150 Coins', tickets: '', image: 'https://placehold.co/30x30/8A2BE2/FFFFFF?text=P9' },
+    { 
+      type: 'Complete Level 5', 
+      label: 'Newr pu tegeR', 
+      value: '150 Coins', 
+      image: 'https://placehold.co/50x50/8A2BE2/FFFFFF?text=P1' 
+    },
+    { 
+      type: 'Complete Level 5', 
+      label: 'Sonf ora ercidatios', 
+      value: '150 Coins', 
+      image: 'https://placehold.co/50x50/4CAF50/FFFFFF?text=P2' 
+    },
+    { 
+      type: 'Defeat 10 Enemies', 
+      label: 'Yourplie cooine 10 Scoips', 
+      value: '95 Coins', 
+      image: 'https://placehold.co/50x50/C71585/FFFFFF?text=P3' 
+    },
+    { 
+      type: 'Defeat 10 Enemies', 
+      label: 'Sourplodden yourands', 
+      value: '150 Coins', 
+      image: 'https://placehold.co/50x50/00C0FF/FFFFFF?text=P4' 
+    },
+    { 
+      type: 'Complete', 
+      label: 'Vourpuetand inntedreds', 
+      value: '150 Coins', 
+      image: 'https://placehold.co/50x50/8A2BE2/FFFFFF?text=P5' 
+    },
   ];
 
   const handleActionClick = () => {
@@ -661,74 +635,126 @@ function ItemDetailModal({ item, onClose, onViewLottery, handleProtectedClick })
     });
   };
 
-  const handleViewLotteryClick = () => {
-    handleProtectedClick(() => {
-      onViewLottery();
-    });
+  const renderEmptyStars = () => {
+    return Array.from({ length: 5 }, (_, index) => (
+      <span key={index} className="text-green-400 text-2xl">☆</span>
+    ));
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <button className="modal-close-button" onClick={onClose}>&times;</button>
-
-        <div className="modal-left-column">
-          <h2 className="modal-title">{item.title}</h2>
-          <img src={item.image} alt={item.title} className="modal-image" onError={(e) => e.target.src = 'https://placehold.co/200x120/808080/FFFFFF?text=Item'} />
-
-          <div className="modal-action-row">
-            <button className="modal-action-button play-and-earn-button" onClick={handleActionClick}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-play">
-                <polygon points="5 3 19 12 5 21 5 3" />
-              </svg>
-              Play and Earn
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div 
+        className="bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-3xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-600" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="p-6 border-b border-gray-700">
+          <div className="flex justify-between items-center">
+            <h2 className="text-3xl font-bold text-white">{item.title}</h2>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-white transition-colors text-3xl font-bold"
+            >
+              ×
             </button>
-            <p className="modal-price">{item.value}</p>
           </div>
         </div>
 
-        <div className="modal-right-column">
-          <div className="modal-rewards-section">
-            <h3>Rewards</h3>
-            <ul className="rewards-list">
-              {itemRewards.map((reward, index) => (
-                <li key={index} className="reward-item">
-                  <img src={reward.image} alt="reward icon" className="reward-icon" onError={(e) => e.target.src = 'https://placehold.co/30x30/808080/FFFFFF?text=P'} />
-                  <span className="reward-label">{reward.label}</span>
-                  <span className="reward-value">{reward.value}</span>
-                  {reward.tickets && <span className="reward-tickets">{reward.tickets} tickets</span>}
-                  {reward.action === 'View' && (
-                    <button className="reward-view-button" onClick={handleViewLotteryClick}>View</button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
+        {/* Content */}
+       <div className="relative flex flex-col lg:flex-row rounded-2xl overflow-hidden">
+        {/* Background Image with Fixed Height */}
+        <div className="absolute top-0 left-0 w-full">
+          <img 
+            src={item.image} 
+            alt={item.title} 
+            className="w-97 h-72 object-cover"
+            onError={(e) => e.target.src = 'https://placehold.co/800x400/1a1a2e/16213e?text=Game+Image'} 
+          />
+          {/* Dark overlay */}
+          <div className="absolute inset-0 bg-black/0"></div>
+        </div>
 
-          <div className="modal-description-section">
-            <h3>Description</h3>
-            <p>{item.fullDescription || item.description || 'No detailed description available.'}</p>
-          </div>
+        {/* Left Section */}
+        <div className="relative z-10 lg:w-7/10 w-full p-6 flex flex-col justify-start mt-72">
+          <h2 className="text-3xl font-bold text-white mb-4">{item.title}</h2>
 
-          <div className="modal-steps-section">
-            <h3>Steps</h3>
-            <ul className="steps-list">
+          <div className="flex items-center gap-4 mb-6">
+            <button 
+              className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 
+                         text-white font-bold py-3 px-6 rounded-xl flex items-center gap-3 transition-all duration-300 shadow-lg"
+              onClick={handleActionClick}
+            >
+              ▶ Play and Earn
+            </button>
+            <div className="bg-black/70 text-white font-bold text-lg py-2 px-4 rounded-xl border border-gray-600">
+              {item.value}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Side Content */}
+        <div className="relative z-20 lg:w-3/10 w-full p-6 
+                        bg-gray-900/50 backdrop-blur-md 
+                        border-l border-gray-700 rounded-r-2xl">
+          <h3 className="text-2xl font-bold text-white mb-6">Rewards</h3>
+
+          <div className="space-y-4">
+            {itemRewards.map((reward, index) => (
+              <div 
+                key={index} 
+                className="flex items-center gap-4 p-4 bg-black/40 backdrop-blur-sm rounded-xl border border-gray-600 hover:bg-black/60 transition-all duration-300"
+              >
+                <img 
+                  src={reward.image} 
+                  alt="reward icon" 
+                  className="w-12 h-12 rounded-lg"
+                  onError={(e) => e.target.src = 'https://placehold.co/50x50/4CAF50/FFFFFF?text=R'} 
+                />
+                <div className="flex-1">
+                  <div className="text-white font-medium text-lg">{reward.type}</div>
+                  <div className="text-gray-300 text-sm">{reward.label}</div>
+                </div>
+                <div className="text-yellow-400 font-bold text-lg">
+                  {reward.value}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          {/* Description */}
+          <div className="mt-8">
+            <h4 className="text-xl font-bold text-white mb-4">Description</h4>
+            <p className="text-gray-200 leading-relaxed">
+              {item.fullDescription || item.description || 'No detailed description available.'}
+            </p>
+          </div>
+          
+          {/* Steps */}
+          <div className="mt-6">
+            <h4 className="text-xl font-bold text-white mb-4">Steps</h4>
+            <ul className="space-y-2">
               {item.completionSteps && item.completionSteps.length > 0 ? (
                 item.completionSteps.map((step, index) => (
-                  <li key={index}>{step}</li>
+                  <li key={index} className="text-gray-200 flex items-center gap-3">
+                    <span className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">
+                      {index + 1}
+                    </span>
+                    {step}
+                  </li>
                 ))
               ) : (
-                <li>No specific steps provided.</li>
+                <li className="text-gray-200">No specific steps provided.</li>
               )}
             </ul>
           </div>
         </div>
       </div>
+            
+      </div>
     </div>
   );
 }
 
-// Function to get SVG icon based on category ID
 const getCategoryIcon = (categoryId) => {
   switch (categoryId) {
     case 'all':
@@ -768,7 +794,6 @@ const getCategoryIcon = (categoryId) => {
   }
 };
 
-// Reusable Task Card Component
 function TaskCard({ task, onClick, handleProtectedClick }) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -822,20 +847,12 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
           className="task-icon"
           onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
         />
-        {/* {task.type === 'GAME' && !task.isPremium && (
-          <div className="game-icon-badge">
-            <Gamepad size={14} />
-            <span>GAME</span>
-          </div>
-        )} */}
       </div>
 
       <div className="task-card-details-main">
         {task.isPremium ? (
           <>
             <h3 className="task-card-title">{task.shortTitle || task.title}</h3>
-
-
             <p className="task-card-condition">{task.displayCondition}</p>
             <div className="task-card-value-and-stars">
                 <p className="task-card-value">{task.displayValue}</p>
@@ -846,7 +863,7 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
           <>
             <h3
                 className="task-card-title offer-title"
-                title={task.title}                       // shows full title on hover
+                title={task.title}
               >
                 {task.shortTitle || task.title}
               </h3>
@@ -879,7 +896,6 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
   );
 }
 
-// New Reusable Game Card Component
 function GameCardComponent({ game, cardSize, gradient, handleShowButtonClick, handleProtectedClick }) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -923,22 +939,15 @@ function GameCardComponent({ game, cardSize, gradient, handleShowButtonClick, ha
     >
       <div className="card-top-section relative">
         <img src={game.image} alt={game.title} className="game-icon" onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=G'} />
-
       </div>
       {game.type === 'GAME' && (
           <div className="game-icon-badge">
-            {/* <img src="/icon17.png" alt="Game" style={{ width: 15, height: 15 }} /> */}
             <span>GAME</span>
           </div>
         )}
-      {/* Removed game-tag as it's not needed with the new badge */}
-      {/* <div className="game-tag">
-        <img src={getIconSrc(game.type)} alt={game.type} className="game-type-icon" onError={(e) => e.target.src = 'https://placehold.co/16x16/808080/FFFFFF?text=X'} />
-      </div> */}
-      <div className="game-details-main">
-       <h3 className="game-title-overlay" title={game.title}> {game.shortTitle || truncate(game.title)} </h3>
 
-              
+      <div className="game-details-main">
+       <h3 className="game-title-overlay" title={game.title}> {game.shortTitle || truncate(game.title)} </h3>
         <p className="game-value-overlay">{game.value}</p>
         <p className="game-condition-overlay">{game.condition}</p>
       </div>
@@ -955,7 +964,6 @@ function GameCardComponent({ game, cardSize, gradient, handleShowButtonClick, ha
   );
 }
 
-// New Reusable Sidebar Category Card Component
 function SidebarCategoryCard({ category, isActive, onClick, handleProtectedClick }) {
   const handleClick = () => {
     handleProtectedClick(() => onClick(category.id));
@@ -976,7 +984,6 @@ function SidebarCategoryCard({ category, isActive, onClick, handleProtectedClick
   );
 }
 
-// Partner Card Component
 function PartnerCard({ partner, handleProtectedClick }) {
   const renderStars = (rating) => {
     const fullStars = Math.floor(rating);
@@ -994,7 +1001,6 @@ function PartnerCard({ partner, handleProtectedClick }) {
   const handleClick = () => {
     handleProtectedClick(() => {
       console.log(`Clicked on partner: ${partner.name}`);
-      // Add specific partner action here if needed
     });
   };
 
@@ -1002,7 +1008,7 @@ function PartnerCard({ partner, handleProtectedClick }) {
     <div
       className={`partner-card ${partner.type === 'survey-card' ? 'survey-card-special' : ''}`}
       style={{ backgroundImage: partner.backgroundImage ? `url(${partner.backgroundImage})` : (partner.gradient ? partner.gradient : 'none') }}
-      onClick={handleClick} // Make the entire card clickable
+      onClick={handleClick}
     >
       {partner.bonusPercentage && (
         <div className="partner-bonus-badge">+{partner.bonusPercentage}%</div>
@@ -1022,7 +1028,6 @@ function PartnerCard({ partner, handleProtectedClick }) {
   );
 }
 
-// Main Tasks Listing Page with Filters and Sort
 function TasksListingPage({ onBack, initialCategory = 'all', handleProtectedClick }) {
   const [rewardRange, setRewardRange] = useState([0, 1000]);
   const [estimatedTime, setEstimatedTime] = useState([0, 180]);
@@ -1275,11 +1280,11 @@ function TasksListingPage({ onBack, initialCategory = 'all', handleProtectedClic
       {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} onViewLottery={() => setShowLotteryModal(true)} handleProtectedClick={handleProtectedClick} />}
       {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
         
-
         <Footer />
     </div>
   );
 }
+
 const NotificationBar = () => {
   const notifications = [
     { name: "Naimasfak", amount: "0.48", platform: "POLL.FY", avatar: "https://i.pravatar.cc/40?img=1", bg: "#1E90FF" },
@@ -1303,7 +1308,7 @@ const NotificationBar = () => {
                 <div className="notif-text">
                   <div className="notif-header">
                     <div className="notif-name">{item.name}</div>
-                    <div className="notif-amount">{item.amount}</div> {/* ✅ moved right here */}
+                    <div className="notif-amount">{item.amount}</div>
                   </div>
                   <div className="notif-tag">{item.platform}</div>
                 </div>
@@ -1313,11 +1318,8 @@ const NotificationBar = () => {
       </div>
     </div>
   );
-
 };
 
-
-// Common Header Component
 const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtectedClick, toggleLoginStatus, userBalance, openProfileModal, isAdmin }) => {
   return (
     <header className="home-header">
@@ -1343,7 +1345,7 @@ const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtected
           <span className={currentPage === 'leader' ? 'active' : ''} onClick={() => handleProtectedClick(() => setCurrentPage('leader'))}>
             <Users size={20} /> Leaderboard
           </span>
-          {isAdmin && ( // Conditionally render Dashboard link based on isAdmin prop
+          {isAdmin && (
             <span className={currentPage === 'Dashboard' ? 'active' : ''} onClick={() => handleProtectedClick(() => setCurrentPage('Dashboard'))}>
               <LayoutDashboard size={20} /> Dashboard
             </span>
@@ -1351,12 +1353,11 @@ const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtected
         </nav>
       </div>
 
-      {/* New Right Section: Balance + Username */}
       <div className="home-header-right">
         <div className="user-balance">
           <span className="balance-amount">$ {userBalance.toFixed(2)}</span>
         </div>
-        <div className="user-profile" onClick={openProfileModal}> {/* Added onClick handler */}
+        <div className="user-profile" onClick={openProfileModal}>
           <div className="user-avatar">
             <img src="/icon21.png" alt="User Avatar" width={24} height={24} />
           </div>
@@ -1368,51 +1369,45 @@ const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtected
         >
           {isLoggedIn ? 'Logout' : 'Login / Signup'}
         </button>
-
       </div>
     </header>
   );
-
-
 };
 
 function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showLotteryModal, setShowLotteryModal] = useState(false);
-  // New state to track expanded sections
   const [expandedSections, setExpandedSections] = useState({});
   const [addedOffers, setAddedOffers] = useState([]);
   const [loadingAddedOffers, setLoadingAddedOffers] = useState(true);
   const [addedOffersError, setAddedOffersError] = useState(null);
   const [dynamicCategories, setDynamicCategories] = useState(gameCategories);
   
-  // 🔹 New states for backend offer modal
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [modalContent, setModalContent] = useState(null);
 
-  // 🔹 Move default image here so it works everywhere
   const defaultImage = 'https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg';
- const renderOfferDetails = (obj) => {
-  if (!obj) return null;
-  const skip = ['id', 'image', 'isBackendOffer', 'gradient'];
-  return Object.entries(obj)
-    .filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
-    .map(([k, v]) => {
-      let display = v;
-      if (typeof v === 'object') display = Array.isArray(v) ? v.join(', ') : JSON.stringify(v);
-      if (/date|expire/i.test(k)) {
-        const d = new Date(v);
-        if (!isNaN(d.getTime())) display = d.toLocaleString();
-      }
-      // ✅ Rename "value" key to "Price" in popup
-      const label = k === 'value' ? 'Price' : k.replace(/([A-Z])/g, ' $1');
-      return (
-        <p key={k}>
-          <strong style={{ color: '#aaa' }}>{label}: </strong>{String(display)}
-        </p>
-      );
-    });
-};
+ 
+  const renderOfferDetails = (obj) => {
+    if (!obj) return null;
+    const skip = ['id', 'image', 'isBackendOffer', 'gradient'];
+    return Object.entries(obj)
+      .filter(([k, v]) => v !== undefined && v !== null && v !== '' && !skip.includes(k))
+      .map(([k, v]) => {
+        let display = v;
+        if (typeof v === 'object') display = Array.isArray(v) ? v.join(', ') : JSON.stringify(v);
+        if (/date|expire/i.test(k)) {
+          const d = new Date(v);
+          if (!isNaN(d.getTime())) display = d.toLocaleString();
+        }
+        const label = k === 'value' ? 'Price' : k.replace(/([A-Z])/g, ' $1');
+        return (
+          <p key={k}>
+            <strong style={{ color: '#aaa' }}>{label}: </strong>{String(display)}
+          </p>
+        );
+      });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -1429,17 +1424,14 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
         const data = (await res.json()) || [];
         if (cancelled) return;
       
-        // classify
         const gamesItems = data.filter(isGameItem);
         const offersItems = data.filter(it => !isGameItem(it));
       
-        // set Added Offers to games (keeps existing behavior)
         setAddedOffers(gamesItems.map(it => ({
           ...it,
           image: it.image || it.icon || defaultImage
         })));
       
-        // merge offers into the Gaming Offers category (dedupe by id)
         setDynamicCategories(prev => prev.map(cat => {
           if (cat.title !== 'Gaming Offers') return cat;
           const existingIds = new Set(cat.games.map(g => String(g.id)));
@@ -1448,28 +1440,27 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
               const id = getId(o);
               return id && !existingIds.has(String(id));
             })
-            
-   .map(o => {
-      console.log("Backend offer data:", o); // 🔍 ADD THIS LINE
+            .map(o => {
+              console.log("Backend offer data:", o);
 
-      return {
-        ...o,
-        id: getId(o),
-        type: o.type || 'OFFER',
-        title: o.title || o.name || 'Untitled Offer',
-        image: o.image || o.icon || defaultImage,
-        genre: o.genre || 'Unknown Genre',
-        price: o.price || o.payout || o.default_payout || '',
-        rating: parseFloat(o.rating) || 0,
-        value: o.price || o.payout || o.default_payout || o.value || '',
-        condition: o.condition || o.trafficType || '',
-        fullDescription: o.description || o.details || '',
-        isBackendOffer: true
-      };
-    });
+              return {
+                ...o,
+                id: getId(o),
+                type: o.type || 'OFFER',
+                title: o.title || o.name || 'Untitled Offer',
+                image: o.image || o.icon || defaultImage,
+                genre: o.genre || 'Unknown Genre',
+                price: o.price || o.payout || o.default_payout || '',
+                rating: parseFloat(o.rating) || 0,
+                value: o.price || o.payout || o.default_payout || o.value || '',
+                condition: o.condition || o.trafficType || '',
+                fullDescription: o.description || o.details || '',
+                isBackendOffer: true
+              };
+            });
 
-  return { ...cat, games: [...cat.games, ...newOffers] };
-}));
+          return { ...cat, games: [...cat.games, ...newOffers] };
+        }));
       
       } catch (err) {
         if (!cancelled) setAddedOffersError(err.message);
@@ -1481,20 +1472,17 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   
     fetchAddedOffers();
     return () => { cancelled = true; };
-  }, []); // run once on mount
- // run once on mount
+  }, []);
+
   const handleShowButtonClick = (item, e) => {
     if (e && e.stopPropagation) e.stopPropagation();
-    // backend-added offers -> show simple offer modal
     if (item && item.isBackendOffer) {
-      setModalContent({ item });      // store the whole offer object
+      setModalContent({ item });
       setShowOfferModal(true);
       return;
     }
-    // otherwise keep original behavior (games / default)
     setSelectedItem(item);
   };
-
 
   const scrollLeft = (title) => {
     const el = document.getElementById(`carousel-${title.replace(/\s/g, '-')}`);
@@ -1517,7 +1505,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
         clearTimeout(timeout);
         timeout = setTimeout(() => {
           wrapper.classList.remove('show-scroll');
-        }, 4000); // Hide after 4 seconds
+        }, 4000);
       };
 
       if (carousel) {
@@ -1530,19 +1518,16 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
         wrapper.classList.remove('show-scroll');
       });
     });
-  }, [expandedSections]); // Re-run effect if expandedSections changes
+  }, [expandedSections]);
   
-
   const homePageSections = dynamicCategories;
-
 
   const premiumSurvey = initialTasks.find(task => task.id === 't_premium');
   const regularSurvey = initialTasks.find(task => task.id === 't_available_regular');
   const lockedSurveys = initialTasks.filter(task => task.isLocked);
   
-
   return (
-     <div className="home-container">
+    <div className="home-container">
       <main className="home-main-content">
         <NotificationBar />
         {homePageSections.map((category) => {
@@ -1552,8 +1537,6 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
             <section key={category.title} className="game-section" id={sectionId}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
                 <h2 className="section-title-with-icon">
-                    {category.title === 'Gaming Offers'}
-                    {category.title === 'Other Offers'}
                     {category.title}
                 </h2>
                 <button
@@ -1586,8 +1569,6 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                     </div>
                   ))}
                 </div>
-               
-
               ) : (
                 <div className="carousel-wrapper">
                   <button className="scroll-btn left" onClick={() => handleProtectedClick(() => scrollLeft(category.title))}>&lt;</button>
@@ -1635,7 +1616,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
           </div>
 
           {expandedSections['Featured Surveys'] ? (
-            <div className="task-cards-grid"> {/* Reusing task-cards-grid for surveys */}
+            <div className="task-cards-grid">
                 {premiumSurvey && (
                   <div className="gradient-card-wrapper"
                     style={{
@@ -1694,7 +1675,6 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                     </div>
                   </div>
                 )}
-                {/* Locked surveys are not clickable, so no need for handleProtectedClick here */}
                 {lockedSurveys.map(task => (
                   <div className="gradient-card-wrapper"
                     key={task.id}
@@ -1790,7 +1770,6 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                     </div>
                   </div>
                 )}
-                {/* Locked surveys are not clickable, so no need for handleProtectedClick here */}
                 {lockedSurveys.map(task => (
                   <div className="gradient-card-wrapper"
                     key={task.id}
@@ -1838,9 +1817,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
         {/* Offer Partners Section */}
         <section className="offer-partners-section game-section">
           <h2 className="offer-partners-title">
-
             Offer Partners
-
           </h2>
           <div className="carousel-wrapper">
             <button className="scroll-btn left" onClick={() => handleProtectedClick(() => scrollLeft('Offer Partners'))}>&lt;</button>
@@ -1856,341 +1833,381 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
 
       {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} onViewLottery={() => setShowLotteryModal(true)} handleProtectedClick={handleProtectedClick} />}
       {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
-      {/* ----------------- Added Offers ----------------- */}
-     <section
-  className="added-offers-section game-section"
-    id="section-Added-Offers"
-    style={{ marginTop: 24 }}
+      
+      <section
+        className="added-offers-section game-section"
+        id="section-Added-Offers"
+        style={{ marginTop: 24 }}
+      >
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            marginBottom: 16,
+          }}
+        >
+          <h2 className="section-title-with-icon">Added Games</h2>
+          <button
+            className="view-all-button"
+            onClick={() =>
+              setExpandedSections((prev) => ({
+                ...prev,
+                ["Added Offers"]: !prev["Added Offers"],
+              }))
+            }
+          >
+            {expandedSections["Added Offers"] ? "Show Less" : "View All"}
+          </button>
+        </div>
+        
+        {loadingAddedOffers ? (
+          <div>Loading added offers…</div>
+        ) : addedOffersError ? (
+          <div className="text-red-500">Error loading offers: {addedOffersError}</div>
+        ) : addedOffers.length === 0 ? (
+          <div>No offers added yet.</div>
+        ) : (
+          <>
+            {expandedSections["Added Offers"] ? (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+                  gap: "16px",
+                }}
+              >
+                {addedOffers.map((item) => {
+                  const isGame = Boolean(item.genre || item.rating);
+                  const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
+                
+                  const rawRating = parseFloat(item.rating);
+                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+                  ratingNum = Math.max(0, Math.min(5, ratingNum));
+                  const filledStars = "★".repeat(Math.round(ratingNum));
+                  const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
+                  const ratingDisplay = ratingNum.toFixed(1);
+                
+                  return (
+                    <div
+                      key={item.id ?? item.title ?? Math.random()}
+                      style={{
+                        background: "#1e1e2f",
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        color: "#fff",
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "100%",
+                      }}
+                    >
+                      <img
+                        src={imgSrc}
+                        alt={item.name || item.title}
+                        style={{
+                          width: "100%",
+                          height: "120px",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <div style={{ padding: "10px", flex: 1 }}>
+                        <p
+                          style={{
+                            fontWeight: "bold",
+                            color: "gold",
+                            fontSize: "15px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          {item.offerName || item.name || item.title || "Untitled Offer"}
+                        </p>
+                        
+                        {isGame ? (
+                          <>
+                            <p style={{ color: "#aaa", fontSize: "13px" }}>
+                              {item.genre || "Unknown Genre"}
+                            </p>
+                            <p style={{ color: "#FFD700", fontSize: "13px" }}>
+                              {filledStars}
+                              {emptyStars} {ratingDisplay}
+                            </p>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
+                            {Object.entries(item)
+                              .filter(([key, val]) =>
+                                val &&
+                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                              )
+                              .map(([key, val]) => {
+                                let displayVal = val;
+                                if (
+                                  key.toLowerCase().includes("date") ||
+                                  key.toLowerCase().includes("expires")
+                                ) {
+                                  const parsed = new Date(val);
+                                  if (!isNaN(parsed.getTime())) {
+                                    displayVal = parsed.toLocaleString();
+                                  }
+                                }
+                                return (
+                                  <p key={key}>
+                                    <strong style={{ color: "#aaa" }}>
+                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                    </strong>
+                                    {String(displayVal)}
+                                  </p>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "flex",
+                  overflowX: "auto",
+                  gap: "16px",
+                  paddingBottom: "10px",
+                  scrollbarWidth: "thin",
+                }}
+              >
+                {addedOffers.slice(0, 12).map((item) => {
+                  const isGame = Boolean(item.genre || item.rating);
+                  const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
+                
+                  const rawRating = parseFloat(item.rating);
+                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
+                  ratingNum = Math.max(0, Math.min(5, ratingNum));
+                  const filledStars = "★".repeat(Math.round(ratingNum));
+                  const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
+                  const ratingDisplay = ratingNum.toFixed(1);
+                
+                  return (
+                    <div
+                      key={item.id ?? item.title ?? Math.random()}
+                      style={{
+                        flex: "0 0 auto",
+                        width: "200px",
+                        background: "#1e1e2f",
+                        borderRadius: 12,
+                        overflow: "hidden",
+                        color: "#fff",
+                        display: "flex",
+                        flexDirection: "column",
+                        height: "100%",
+                      }}
+                    >
+                      <img
+                        src={imgSrc}
+                        alt={item.name || item.title}
+                        style={{
+                          width: "100%",
+                          height: "120px",
+                          objectFit: "cover",
+                        }}
+                      />
+                      <div style={{ padding: "10px", flex: 1 }}>
+                        <p
+                          style={{
+                            fontWeight: "bold",
+                            color: "gold",
+                            fontSize: "15px",
+                            marginBottom: "6px",
+                          }}
+                        >
+                          {item.offerName || item.name || item.title || "Untitled Offer"}
+                        </p>
+                        
+                        {isGame ? (
+                          <>
+                            <p style={{ color: "#aaa", fontSize: "13px" }}>
+                              {item.genre || "Unknown Genre"}
+                            </p>
+                            <p style={{ color: "#FFD700", fontSize: "13px" }}>
+                              {filledStars}
+                              {emptyStars} {ratingDisplay}
+                            </p>
+                          </>
+                        ) : (
+                          <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
+                            {Object.entries(item)
+                              .filter(([key, val]) =>
+                                val &&
+                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
+                              )
+                              .map(([key, val]) => {
+                                let displayVal = val;
+                                if (
+                                  key.toLowerCase().includes("date") ||
+                                  key.toLowerCase().includes("expires")
+                                ) {
+                                  const parsed = new Date(val);
+                                  if (!isNaN(parsed.getTime())) {
+                                    displayVal = parsed.toLocaleString();
+                                  }
+                                }
+                                return (
+                                  <p key={key}>
+                                    <strong style={{ color: "#aaa" }}>
+                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
+                                    </strong>
+                                    {String(displayVal)}
+                                  </p>
+                                );
+                              })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+{showOfferModal && modalContent?.item && (
+  <div
+    className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
+    onClick={() => setShowOfferModal(false)}
   >
     <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16,
-      }}
+      className="relative w-full max-w-[900px] bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border border-gray-600"
+      onClick={(e) => e.stopPropagation()}
     >
-      <h2 className="section-title-with-icon">Added Games</h2>
-      <button
-        className="view-all-button"
-        onClick={() =>
-          setExpandedSections((prev) => ({
-            ...prev,
-            ["Added Offers"]: !prev["Added Offers"],
-          }))
-        }
-      >
-        {expandedSections["Added Offers"] ? "Show Less" : "View All"}
-      </button>
-    </div>
-      
-    {loadingAddedOffers ? (
-      <div>Loading added offers…</div>
-    ) : addedOffersError ? (
-      <div className="text-red-500">Error loading offers: {addedOffersError}</div>
-    ) : addedOffers.length === 0 ? (
-      <div>No offers added yet.</div>
-    ) : (
-      <>
-        {expandedSections["Added Offers"] ? (
-          /* === GRID VIEW === */
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-              gap: "16px",
-            }}
-          >
-            {addedOffers.map((item) => {
-              const isGame = Boolean(item.genre || item.rating);
-              const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-            
-              // Rating for games
-              const rawRating = parseFloat(item.rating);
-              let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-              ratingNum = Math.max(0, Math.min(5, ratingNum));
-              const filledStars = "★".repeat(Math.round(ratingNum));
-              const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-              const ratingDisplay = ratingNum.toFixed(1);
-            
-              return (
-                <div
-                  key={item.id ?? item.title ?? Math.random()}
-                  style={{
-                    background: "#1e1e2f",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    color: "#fff",
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100%",
-                  }}
-                >
-                  <img
-                    src={imgSrc}
-                    alt={item.name || item.title}
-                    style={{
-                      width: "100%",
-                      height: "120px",
-                      objectFit: "cover",
-                    }}
-                  />
-                  <div style={{ padding: "10px", flex: 1 }}>
-                    <p
-                      style={{
-                        fontWeight: "bold",
-                        color: "gold",
-                        fontSize: "15px",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {item.offerName || item.name || item.title || "Untitled Offer"}
-                    </p>
-                    
-                    {isGame ? (
-                      <>
-                        <p style={{ color: "#aaa", fontSize: "13px" }}>
-                          {item.genre || "Unknown Genre"}
-                        </p>
-                        <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                          {filledStars}
-                          {emptyStars} {ratingDisplay}
-                        </p>
-                      </>
-                    ) : (
-                      <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                        {Object.entries(item)
-                          .filter(([key, val]) =>
-                            val &&
-                            !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                          )
-                          .map(([key, val]) => {
-                            let displayVal = val;
-                            if (
-                              key.toLowerCase().includes("date") ||
-                              key.toLowerCase().includes("expires")
-                            ) {
-                              const parsed = new Date(val);
-                              if (!isNaN(parsed.getTime())) {
-                                displayVal = parsed.toLocaleString();
-                              }
-                            }
-                            return (
-                              <p key={key}>
-                                <strong style={{ color: "#aaa" }}>
-                                  {key.replace(/([A-Z])/g, " $1")}:{" "}
-                                </strong>
-                                {String(displayVal)}
-                              </p>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          /* === HORIZONTAL SCROLL === */
-          <div
-            style={{
-              display: "flex",
-              overflowX: "auto",
-              gap: "16px",
-              paddingBottom: "10px",
-              scrollbarWidth: "thin",
-            }}
-          >
-            {addedOffers.slice(0, 12).map((item) => {
-              const isGame = Boolean(item.genre || item.rating);
-              const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-            
-              const rawRating = parseFloat(item.rating);
-              let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-              ratingNum = Math.max(0, Math.min(5, ratingNum));
-              const filledStars = "★".repeat(Math.round(ratingNum));
-              const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-              const ratingDisplay = ratingNum.toFixed(1);
-            
-              return (
-                <div
-                  key={item.id ?? item.title ?? Math.random()}
-                  style={{
-                    flex: "0 0 auto",
-                    width: "200px",
-                    background: "#1e1e2f",
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    color: "#fff",
-                    display: "flex",
-                    flexDirection: "column",
-                    height: "100%",
-                  }}
-                >
-                  <img
-                    src={imgSrc}
-                    alt={item.name || item.title}
-                    style={{
-                      width: "100%",
-                      height: "120px",
-                      objectFit: "cover",
-                    }}
-                  />
-                  <div style={{ padding: "10px", flex: 1 }}>
-                    <p
-                      style={{
-                        fontWeight: "bold",
-                        color: "gold",
-                        fontSize: "15px",
-                        marginBottom: "6px",
-                      }}
-                    >
-                      {item.offerName || item.name || item.title || "Untitled Offer"}
-                    </p>
-                    
-                    {isGame ? (
-                      <>
-                        <p style={{ color: "#aaa", fontSize: "13px" }}>
-                          {item.genre || "Unknown Genre"}
-                        </p>
-                        <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                          {filledStars}
-                          {emptyStars} {ratingDisplay}
-                        </p>
-                      </>
-                    ) : (
-                      <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                        {Object.entries(item)
-                          .filter(([key, val]) =>
-                            val &&
-                            !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                          )
-                          .map(([key, val]) => {
-                            let displayVal = val;
-                            if (
-                              key.toLowerCase().includes("date") ||
-                              key.toLowerCase().includes("expires")
-                            ) {
-                              const parsed = new Date(val);
-                              if (!isNaN(parsed.getTime())) {
-                                displayVal = parsed.toLocaleString();
-                              }
-                            }
-                            return (
-                              <p key={key}>
-                                <strong style={{ color: "#aaa" }}>
-                                  {key.replace(/([A-Z])/g, " $1")}:{" "}
-                                </strong>
-                                {String(displayVal)}
-                              </p>
-                            );
-                          })}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </>
-    )}
-  </section>
-  {showOfferModal && modalContent?.item && (
-    <div className="modal-overlay" onClick={() => setShowOfferModal(false)}>
-      <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          maxWidth: 700, // smaller popup width
-          padding: 20,
-          borderRadius: 10,
-          display: 'flex',
-          flexDirection: 'row', // image left, details right
-          gap: 20
-        }}
-      >
-        {/* Left - Image */}
-        <div style={{ flex: '0 0 250px' }}>
+      {/* Header */}
+      <div className="p-6 pb-4">
+        <h2 className="text-2xl font-bold text-white">
+          {modalContent.item.title || modalContent.item.name}
+        </h2>
+      </div>
+
+      {/* Main Content Container */}
+      <div className="px-6 pb-6 flex">
+        {/* Left Side - Image */}
+        <div className="w-[400px] h-[280px] relative mr-6">
           <img
             src={modalContent.item.image || defaultImage}
             alt={modalContent.item.title || modalContent.item.name}
-            style={{
-              width: '100%',
-              borderRadius: 8,
-              objectFit: 'cover'
-            }}
+            className="w-full h-full object-cover rounded-lg"
+            onError={(e) =>
+              (e.target.src =
+                "https://placehold.co/400x280/1a1a2e/16213e?text=Offer+Image")
+            }
           />
-        </div>
           
-        {/* Right - Details */}
-        <div style={{ flex: 1, color: '#ccc', fontSize: 14 }}>
-          <h2 style={{ color: 'gold', marginBottom: 8 }}>
-            {modalContent.item.title || modalContent.item.name}
-          </h2>
-          <div style={{ maxHeight: 300, overflowY: 'auto', marginBottom: 12 }}>
-            {Object.entries(modalContent.item).map(([key, value]) => (
-              value && key !== 'image' && (
-                <p key={key}>
-                  <strong>{key}:</strong> {value}
-                </p>
-              )
+          {/* Stars at bottom of image */}
+          <div className="absolute bottom-4 left-4 flex gap-1">
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="w-6 h-6">
+                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                </svg>
+              </div>
             ))}
           </div>
-          <button
-            style={{
-              background: '#294f9cff',
-              border: 'none',
-              padding: '8px 14px',
-              borderRadius: 6,
-              cursor: 'pointer'
-            }}
-            onClick={() => setShowOfferModal(false)}
-          >
-            Close
-          </button>
+        </div>
+
+        {/* Right Side - Details */}
+        <div className="flex-1">
+          {/* Play and Earn Button with Price */}
+          <div className="flex items-center justify-between mb-4">
+            <button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200">
+              Play and Earn
+            </button>
+            <div className="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
+              $5.25
+            </div>
+          </div>
+
+          {/* Rewards Header */}
+          <h3 className="text-white font-semibold mb-3">Rewards</h3>
+          
+          {/* Purple Progress Bar */}
+          <div className="w-full bg-gray-700 rounded-full h-1 mb-4">
+            <div className="bg-gradient-to-r from-purple-500 to-purple-600 h-1 rounded-full" style={{width: '70%'}}></div>
+          </div>
+
+          {/* Scrollable Dynamic Fields */}
+          <div className="space-y-2 overflow-y-auto max-h-[200px] pr-2">
+            {Object.entries(modalContent.item).map(
+              ([key, value], index) =>
+                value &&
+                key !== "image" && (
+                  <div
+                    key={key}
+                    className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
+                  >
+                    {/* Avatar/Icon */}
+                    {/* <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-xs font-bold">
+                        {key.charAt(0).toUpperCase()}
+                      </span>
+                    </div> */}
+                    
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-white font-medium capitalize text-sm">
+                        {key.replace(/_/g, ' ')}
+                      </div>
+                      <div className="text-gray-400 text-xs break-words">
+                        {String(value)}
+                      </div>
+                    </div>
+                    
+                    {/* Coins */}
+                    {/* <div className="text-yellow-400 font-semibold text-sm">
+                      150 Coins
+                    </div> */}
+                  </div>
+                )
+            )}
+          </div>
         </div>
       </div>
     </div>
-  )}
-  
- <Footer />
+  </div>
+)}
+      
+      <Footer />
     </div>
   );
 }
 
-// This is the main App component that will be rendered.
 export default function App() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [isLoggedIn, setIsLoggedIn] = useState(false); // Mock authentication state
-  const [isAdmin, setIsAdmin] = useState(false); // New state for admin status
-  const [userBalance, setUserBalance] = useState(0); // New state for user balance
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userBalance, setUserBalance] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false); // New state for profile modal
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // Function to handle clicks on protected elements
   const handleProtectedClick = (action) => {
     if (isLoggedIn) {
-      action(); // If logged in, proceed with the original action
+      action();
     } else {
-      setShowLoginModal(true); // If not logged in, show the login modal
+      setShowLoginModal(true);
     }
   };
+  
   const handleLoginSuccess = (loggedInAsAdmin = false) => {
-    setIsLoggedIn(true);               // Marks user as logged in
-    setIsAdmin(loggedInAsAdmin);      // Stores admin status in state
-    setUserBalance(5);                // Sets initial balance (bonus)
+    setIsLoggedIn(true);
+    setIsAdmin(loggedInAsAdmin);
+    setUserBalance(5);
     setShowLoginModal(false);   
-    showContactMessage();       // Closes the modal
+    showContactMessage();
   };
   
-
   const handleLogout = () => {
     setIsLoggedIn(false);
-    setIsAdmin(false); // Reset admin status on logout
-    setUserBalance(0); // Reset balance on logout
-    setCurrentPage('home'); // Optionally redirect to home on logout
+    setIsAdmin(false);
+    setUserBalance(0);
+    setCurrentPage('home');
   };
 
   const toggleLoginStatus = () => {
@@ -2207,14 +2224,12 @@ export default function App() {
 
   const handleAddBalance = (amount) => {
     setUserBalance(prevBalance => prevBalance + amount);
-    // In a real app, you'd integrate with a backend for actual transactions
     console.log(`Added $${amount} to balance. New balance: $${userBalance + amount}`);
   };
 
   const handleWithdrawBalance = (amount) => {
     if (userBalance >= amount) {
       setUserBalance(prevBalance => prevBalance - amount);
-      // In a real app, you'd integrate with a backend for actual transactions
       console.log(`Withdrew $${amount} from balance. New balance: $${userBalance - amount}`);
     } else {
       console.log("Insufficient balance for withdrawal.");
@@ -2229,7 +2244,6 @@ export default function App() {
       case 'home':
         content = <HomePageContent setCurrentPage={setCurrentPage} currentPage={currentPage} handleProtectedClick={handleProtectedClick} />;
         break;
-
       case 'profile':
         content = <ProfilePage onBack={handleBackToHome} />;
         break;
@@ -2258,9 +2272,9 @@ export default function App() {
         isLoggedIn={isLoggedIn}
         handleProtectedClick={handleProtectedClick}
         toggleLoginStatus={toggleLoginStatus}
-        userBalance={userBalance} // Pass userBalance to CommonHeader
-        openProfileModal={() => setShowProfileModal(true)} // Pass function to open profile modal
-        isAdmin={isAdmin} // Pass isAdmin prop to CommonHeader
+        userBalance={userBalance}
+        openProfileModal={() => setShowProfileModal(true)}
+        isAdmin={isAdmin}
       />
       <div className="main-content-area">
         {content}
@@ -2273,11 +2287,11 @@ export default function App() {
         />
       )}
 
-      {showProfileModal && isLoggedIn && ( // Only show profile modal if logged in
+      {showProfileModal && isLoggedIn && (
         <ProfileDetailModal
           onClose={() => setShowProfileModal(false)}
-          userName="shivama" // Static username for now, can be dynamic
-          userAvatar="/icon21.png" // Static avatar for now
+          userName="shivama"
+          userAvatar="/icon21.png"
           userBalance={userBalance}
           onAddBalance={handleAddBalance}
           onWithdrawBalance={handleWithdrawBalance}
