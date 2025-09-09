@@ -9,6 +9,14 @@ import axios from "axios";
 import * as XLSX from 'xlsx';
 import PostbackDocumentation from './PostbackDocumentation';
 import Tesseract from 'tesseract.js';
+import {
+  ResponsiveContainer,
+  PieChart, Pie, Cell, Tooltip as RechartTooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+} from 'recharts';
+
+
+
 
 // ...rest of your code...
 
@@ -57,6 +65,110 @@ export default function Dashboard() {
   const [filterDate, setFilterDate] = useState('');
   // Games
   const [games, setGames] = useState([]);
+  const [trackedClicks, setTrackedClicks] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  // --- analytics helpers ---
+const totalResponses = (sessions && sessions.length) || 0;
+
+const totalConversions = (sessions || []).reduce((sum, s) => {
+  return sum + (Number(s.conversions) || 0);
+}, 0);
+
+const completionRate = totalResponses ? (totalConversions / totalResponses) * 100 : 0;
+
+const avgTimeSec = totalResponses
+  ? (sessions || []).reduce((sum, s) => {
+      return sum + (Number(s.timeSpent) || Number(s.time_spent) || Number(s['Time Spent (s)']) || 0);
+    }, 0) / totalResponses
+  : 0;
+const avgTimeDisplay = `${(avgTimeSec / 60).toFixed(1)}m`;
+
+const deviceCounts = (sessions || []).reduce((acc, s) => {
+  const platform =
+    (s.device && (s.device.platform || s.device.platformName)) ||
+    (typeof s.device === 'string' ? s.device : '') ||
+    '';
+
+  const p = platform.toString().toLowerCase();
+  if (p.includes('android') || p.includes('iphone') || p.includes('mobile')) acc.Mobile = (acc.Mobile || 0) + 1;
+  else if (p.includes('ipad') || p.includes('tablet')) acc.Tablet = (acc.Tablet || 0) + 1;
+  else if (p.includes('win') || p.includes('mac') || p.includes('linux') || p.includes('desktop')) acc.Desktop = (acc.Desktop || 0) + 1;
+  else acc.Other = (acc.Other || 0) + 1;
+  return acc;
+}, {});
+
+const pieData = Object.entries(deviceCounts).map(([name, value]) => ({ name, value }));
+
+const countryCounts = (sessions || []).reduce((acc, s) => {
+  const country = (s.geo && s.geo.country) || s.country || s['Country'] || 'Unknown';
+  const key = country || 'Unknown';
+  acc[key] = (acc[key] || 0) + 1;
+  return acc;
+}, {});
+
+const barData = Object.entries(countryCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 6)
+  .map(([country, count]) => ({ country, count }));
+
+const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
+
+  // ----------------- Session tracking (add this) -----------------
+const sessionIdRef = useRef(
+  (typeof crypto !== 'undefined' && crypto.randomUUID) 
+    ? crypto.randomUUID() 
+    : `sess-${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+);
+const startTimeRef = useRef(new Date().toISOString());
+
+useEffect(() => {
+  // send session_start
+  fetch("http://localhost:5000/api/track-click", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      eventType: "session_start",
+      sessionId: sessionIdRef.current,
+      startTime: startTimeRef.current,
+      ua: navigator.userAgent,
+    }),
+  }).catch(() => {});
+
+  // safe submit of session_end on tab close / hide
+  const sendSessionEnd = () => {
+    const payload = JSON.stringify({
+      eventType: "session_end",
+      sessionId: sessionIdRef.current,
+      startTime: startTimeRef.current,
+    });
+
+    // try navigator.sendBeacon first (good for unload)
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: "application/json" });
+      navigator.sendBeacon("http://localhost:5000/api/track-click", blob);
+    } else {
+      // fallback
+      fetch("http://localhost:5000/api/track-click", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  };
+
+  window.addEventListener("beforeunload", sendSessionEnd);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") sendSessionEnd();
+  });
+
+  return () => {
+    window.removeEventListener("beforeunload", sendSessionEnd);
+  };
+}, []);
+// ----------------- end session tracking -----------------
+
+
   const [gameForm, setGameForm] = useState({ title: '', genre: '', rating: '', image: '', link: '' });
   const [gameFormError, setGameFormError] = useState('');
   const [gameFormLoading, setGameFormLoading] = useState(false);
@@ -64,6 +176,9 @@ export default function Dashboard() {
   const [extractedEmails, setExtractedEmails] = useState([]);
   const [selectableEmails, setSelectableEmails] = useState([]);
   const [selectedRecipients, setSelectedRecipients] = useState([]);
+
+  
+
   // Helper: replace placeholders in URL with random values
   const resolvePlaceholders = (url) => {
     // Replace {form_id}, {user_id}, {account_id}, {submission_time} with random or current values
@@ -73,6 +188,7 @@ export default function Dashboard() {
       .replace(/\{account_id\}/g, coreFields.accountId.value || 'acc123')
       .replace(/\{submission_time\}/g, new Date().toISOString());
   };
+  
   // Start a new test job
   const startTestJob = () => {
     if (!testUrl) return;
@@ -461,6 +577,84 @@ export default function Dashboard() {
     await fetch(`http://localhost:5000/api/games/${id}`, { method: 'DELETE' });
     fetchGames();
   };
+  const fetchSessionsSummary = async () => {
+  try {
+    // fetch last 1000 events
+    const res = await fetch("http://localhost:5000/api/clicks?limit=1000");
+    const events = await res.json();
+
+    // group by sessionId
+    const map = new Map();
+    events.forEach(ev => {
+      const sid = ev.sessionId || `anon-${ev.id}`;
+      if (!map.has(sid)) map.set(sid, { sessionId: sid, start: null, end: null, clicks: 0, conversions: 0, ua: ev.ua, device: ev.device, ip: ev.ip, country: ev.geo?.country || ev.geo?.countryCode || null });
+      const s = map.get(sid);
+      if (ev.eventType === 'session_start') {
+  // prefer startTime (frontend), fall back to server timestamp
+  s.start = s.start || (ev.startTime || ev.timestamp);
+  s.ua = s.ua || ev.ua;
+  s.device = s.device || ev.device;
+  s.ip = s.ip || ev.ip;
+  s.country = s.country || ev.geo?.country || ev.geo?.countryCode || null;
+} else if (ev.eventType === 'click') {
+  s.clicks = (s.clicks || 0) + 1;
+} else if (ev.eventType === 'conversion') {
+  s.conversions = (s.conversions || 0) + 1;
+  s.lastConversionId = ev.conversionId || s.lastConversionId;
+} else if (ev.eventType === 'session_end') {
+  s.end = s.end || (ev.timestamp || ev.endTime);
+  // backend sends timeSpent in seconds when eventType === "session_end"
+  if (typeof ev.timeSpent === 'number') s.timeSpent = ev.timeSpent;
+}
+
+      // update lastSeen
+      s.lastSeen = ev.timestamp;
+    });
+    // ✅ Turn Map into summarized array
+const summarized = Array.from(map.values()).map(s => {
+  // if no timeSpent from backend, compute it
+  if (!s.timeSpent && s.start && s.end) {
+    const startMs = new Date(s.start).getTime();
+    const endMs = new Date(s.end).getTime();
+    s.timeSpent = Math.floor((endMs - startMs) / 1000);
+  }
+  return s;
+});
+
+setSessions(summarized);
+
+
+    // compute timeSpent for sessions without explicit session_end
+   const arr = Array.from(map.values()).map(s => {
+  const startMs = s.start ? new Date(s.start).getTime() : (s.lastSeen ? new Date(s.lastSeen).getTime() : null);
+  const endMs = s.end ? new Date(s.end).getTime() : (s.lastSeen ? new Date(s.lastSeen).getTime() : Date.now());
+
+  // computed seconds if we only have ms-derived values
+  const computedTimeSec = startMs ? Math.max(0, Math.floor((endMs - startMs) / 1000)) : (s.timeSpent ?? 0);
+
+  return {
+    ...s,
+    // prefer s.timeSpent (backend seconds) otherwise use computed seconds
+    timeSpent: (typeof s.timeSpent === 'number') ? s.timeSpent : computedTimeSec,
+    start: s.start,
+    end: s.end,
+  };
+});
+
+// newest first
+arr.sort((a,b)=> (b.start || b.lastSeen || 0) - (a.start || a.lastSeen || 0));
+setSessions(arr);
+
+
+    // newest first
+    arr.sort((a,b)=> (b.start || b.lastSeen || 0) - (a.start || a.lastSeen || 0));
+    setSessions(arr);
+  } catch (err) {
+    console.error("Failed to fetch session summary", err);
+  }
+};
+
+
 
   // Render content based on currentView
   const renderContent = () => {
@@ -474,7 +668,7 @@ export default function Dashboard() {
                 {/* Buttons were here, now they are removed */}
               </div>
             </div>
-
+            
             <div className="stats">
               <div className="stat-box">
                 <strong>Coins</strong>
@@ -975,6 +1169,131 @@ export default function Dashboard() {
             <ScreenshotOfferExtractor />
           </div>
         );
+            case 'game-tracking':
+              // --- analytics helpers ---
+const totalResponses = (sessions && sessions.length) || 0;
+
+// Sum conversions (handles conversions as number or '1'/'0')
+const totalConversions = (sessions || []).reduce((sum, s) => {
+  return sum + (Number(s.conversions) || 0);
+}, 0);
+
+const completionRate = totalResponses ? (totalConversions / totalResponses) * 100 : 0;
+
+// Average time in seconds: try several possible keys (timeSpent, time_spent, 'Time Spent (s)')
+const avgTimeSec = totalResponses
+  ? (sessions || []).reduce((sum, s) => {
+      return sum + (Number(s.timeSpent) || Number(s.time_spent) || Number(s['Time Spent (s)']) || 0);
+    }, 0) / totalResponses
+  : 0;
+const avgTimeDisplay = `${(avgTimeSec / 60).toFixed(1)}m`;
+
+// Device distribution (Mobile / Desktop / Tablet / Other)
+const deviceCounts = (sessions || []).reduce((acc, s) => {
+  const platform =
+    (s.device && (s.device.platform || s.device.platformName)) ||
+    (typeof s.device === 'string' ? s.device : '') ||
+    '';
+
+  const p = platform.toString().toLowerCase();
+  if (p.includes('android') || p.includes('iphone') || p.includes('mobile')) acc.Mobile = (acc.Mobile || 0) + 1;
+  else if (p.includes('ipad') || p.includes('tablet')) acc.Tablet = (acc.Tablet || 0) + 1;
+  else if (p.includes('win') || p.includes('mac') || p.includes('linux') || p.includes('desktop')) acc.Desktop = (acc.Desktop || 0) + 1;
+  else acc.Other = (acc.Other || 0) + 1;
+  return acc;
+}, {});
+
+const pieData = Object.entries(deviceCounts).map(([name, value]) => ({ name, value }));
+
+// Top countries bar chart (top 6)
+const countryCounts = (sessions || []).reduce((acc, s) => {
+  const country = (s.geo && s.geo.country) || s.country || s['Country'] || 'Unknown';
+  const key = country || 'Unknown';
+  acc[key] = (acc[key] || 0) + 1;
+  return acc;
+}, {});
+
+const barData = Object.entries(countryCounts)
+  .sort((a, b) => b[1] - a[1])
+  .slice(0, 6)
+  .map(([country, count]) => ({ country, count }));
+
+// Colors for pie
+const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Game Tracking — Sessions</h2>
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={fetchSessionsSummary} style={{ marginRight: 8 }}>Refresh</button>
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+  <tr>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Session ID</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Start</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Time Spent (s)</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Clicks</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Conversions</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>IP</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Country</th>
+    <th style={{ border: '1px solid #ddd', padding: 8 }}>Device / UA</th>
+  </tr>
+</thead>
+
+        <tbody>
+          {sessions.length === 0 ? (
+            <tr><td colSpan={8} style={{ textAlign: 'center', padding: 12 }}>No sessions found</td></tr>
+          ) : sessions.map((s, idx) => (
+            <tr key={s.sessionId || idx}>
+              {/* Session ID */}
+<td style={{ border: '1px solid #ddd', padding: 8, fontFamily: 'monospace' }}>
+  {s.sessionId || '-'}
+</td>
+
+{/* Start */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>
+  {(s.start || s.startTime) ? new Date(s.start || s.startTime).toLocaleString() : '-'}
+</td>
+
+{/* Time Spent (seconds) */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>
+  {(s.timeSpent || s.timeSpent === 0) ? `${s.timeSpent} sec` : '-'}
+</td>
+
+{/* Clicks */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>{s.clicks || 0}</td>
+
+{/* Conversions */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>{s.conversions || 0}</td>
+
+{/* IP */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>{s.ip || '-'}</td>
+
+{/* Country (single column) */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>
+  {s.geo?.country || s.country || '-'}
+</td>
+
+
+{/* Device / UA */}
+<td style={{ border: '1px solid #ddd', padding: 8 }}>
+  {(s.device && s.device.platform)
+    ? `${s.device.platform} ${s.device.viewportWidth || ''}x${s.device.viewportHeight || ''}`
+    : (s.ua || '-')}
+</td>
+
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+
+
+      
+
+
 
       default: // No default case for 'support', 'terms', 'logged-out' as they will navigate
         return null;
@@ -1061,11 +1380,17 @@ export default function Dashboard() {
           <li className={location.pathname === 'image-extractor' ? 'active' : ''} onClick={() => handleNavigationClick('image-extractor')}>
             Image Extractor
           </li>
+          <li className={location.pathname === 'game-tracking' ? 'active' : ''}onClick={() => handleNavigationClick('game-tracking')}>
+            Game Tracking
+         </li>
+
         </ul>
         <div className="bottom-links">
           {/* Settings link with active state based on route */}
           <span className={location.pathname === '/profile' ? 'active' : ''} onClick={() => handleNavigationClick('profile')}>Profile</span>
+          
           <span className={location.pathname === '/' && !userId ? 'active' : ''} onClick={() => handleNavigationClick('logout')}>Logout</span>
+
         </div>
       </aside>
 
@@ -1074,6 +1399,7 @@ export default function Dashboard() {
         {renderContent()}
         {userId && location.pathname !== '/' && <p style={{ textAlign: 'center', marginTop: '20px', color: '#777' }}>User ID: {userId}</p>}
       </main>
+      
     </div>
   );
 }

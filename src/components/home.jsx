@@ -12,6 +12,41 @@ import DashboardPage from './Dashboard.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
+// inside home.jsx
+
+// paste/replace the existing handleGameClick in src/components/home.jsx
+const handleGameClick = async (game) => {
+  try {
+    // try firebase auth userId if available
+    const userId = (typeof auth !== 'undefined' && auth?.currentUser?.uid) || window.localStorage.getItem('uid') || null;
+
+    const payload = {
+      gameId: game.id ?? game._id ?? String(game.title),
+      gameTitle: game.title ?? game.name ?? null,
+      userId,
+      page: window.location.pathname,
+      extra: {
+        type: game.type ?? null,
+        value: game.value ?? game.displayValue ?? null
+      },
+      timestamp: new Date().toISOString(),
+    };
+
+    // fire-and-forget (don't block UI)
+    fetch("http://localhost:5000/api/track-click", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    .then(() => console.log("Tracked:", payload.gameTitle))
+    .catch(err => console.warn("Tracking failed:", err));
+
+  } catch (err) {
+    console.error("Tracking failed (outer):", err);
+  }
+};
+
+
 
 const truncate = (str) => {
   if (!str) return '';
@@ -814,9 +849,12 @@ function TaskCard({ task, onClick, handleProtectedClick }) {
   };
 
   const handleShowClick = (e) => {
-    e.stopPropagation();
-    handleProtectedClick(() => onClick(task));
-  };
+  e.stopPropagation();
+  // track the task (works for games/offers too)
+  handleGameClick(task);
+  handleProtectedClick(() => onClick(task));
+};
+
 
   const getButtonText = (type) => {
     switch (type) {
@@ -926,8 +964,13 @@ function GameCardComponent({ game, cardSize, gradient, handleShowButtonClick, ha
   };
 
   const handleClick = (e) => {
-    handleProtectedClick(() => handleShowButtonClick(game, e));
-  };
+  if (e && e.stopPropagation) e.stopPropagation();
+  // send tracking
+  handleGameClick(game);
+  // then do the existing protected action (open modal / navigate)
+  handleProtectedClick(() => handleShowButtonClick(game, e));
+};
+
 
   return (
     <div
@@ -1626,7 +1669,14 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                       display: 'inline-block'
                     }}
                   >
-                    <div className="survey-card" onClick={() => handleProtectedClick(() => setSelectedItem(premiumSurvey))}>
+                    <div
+  className="survey-card"
+  onClick={() => handleProtectedClick(() => {
+    handleGameClick(premiumSurvey);
+    setSelectedItem(premiumSurvey);
+  })}
+>
+
                       <div className="survey-card-top">
                         <img
                           src={premiumSurvey.image}
@@ -1721,7 +1771,14 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
                       display: 'inline-block'
                     }}
                   >
-                    <div className="survey-card" onClick={() => handleProtectedClick(() => setSelectedItem(premiumSurvey))}>
+                    <div
+  className="survey-card"
+  onClick={() => handleProtectedClick(() => {
+    handleGameClick(premiumSurvey);
+    setSelectedItem(premiumSurvey);
+  })}
+>
+
                       <div className="survey-card-top">
                         <img
                           src={premiumSurvey.image}
