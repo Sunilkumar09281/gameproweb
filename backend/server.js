@@ -14,13 +14,26 @@ const DATA_DIR = path.join(__dirname, "data");
 const CLICK_FILE = path.join(DATA_DIR, "clicks.ndjson");
 
 // ✅ CORS setup
+// Accept the FRONTEND_URL(s) from environment, comma-separated
+const allowedOrigins =
+  (process.env.ALLOWED_ORIGINS || "http://localhost:3000,https://gamepro.pw")
+    .split(",")
+    .map((s) => s.trim());
+
 app.use(
   cors({
-    origin: "http://localhost:3000", // React frontend
+    origin: (origin, callback) => {
+      // allow requests with no origin (e.g. curl, mobile apps, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      console.warn("Blocked CORS origin:", origin);
+      return callback(new Error("Not allowed by CORS"));
+    },
     methods: ["GET", "POST", "DELETE", "PUT", "OPTIONS"],
     credentials: true,
   })
 );
+
 
 app.use(express.json());
 
