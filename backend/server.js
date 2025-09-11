@@ -314,11 +314,18 @@ app.delete("/api/games/:id", async (req, res) => {
   }
 });
 
-// Catch-all for undefined routes
-app.use((req, res) => {
-  res.status(404).json({ error: 'Route not found' });
+// ----------------- Game Endpoints -----------------
+// ... your /api/games endpoints ...
+
+// ✅ ADD THIS *ABOVE* the catch-all:
+app.get('/', (req, res) => {
+  res.send('✅ GamePro tracking backend is running on Render.');
 });
 
+// Catch-all for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
 
 // ----------------- Start Server -----------------
 app.listen(PORT, '0.0.0.0', () => {
@@ -327,3 +334,4 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔗 Backend URL: https://gameproback.onrender.com`);
   console.log(`📍 Trust proxy enabled for IP detection`);
 });
+
