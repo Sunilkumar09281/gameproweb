@@ -13,7 +13,7 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 // inside home.jsx
-
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 // paste/replace the existing handleGameClick in src/components/home.jsx
 const handleGameClick = async (game) => {
   try {
@@ -32,13 +32,21 @@ const handleGameClick = async (game) => {
       timestamp: new Date().toISOString(),
     };
 
-    // fire-and-forget (don't block UI)
-    fetch("http://localhost:5000/api/track-click", {
+    // Use environment variable instead of hardcoded localhost
+    console.log('Tracking to:', `${API_BASE_URL}/api/track-click`);
+    
+    fetch(`${API_BASE_URL}/api/track-click`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     })
-    .then(() => console.log("Tracked:", payload.gameTitle))
+    .then(response => {
+      console.log('Tracking response status:', response.status);
+      return response.json();
+    })
+    .then(data => {
+      console.log("Tracked successfully:", payload.gameTitle, data);
+    })
     .catch(err => console.warn("Tracking failed:", err));
 
   } catch (err) {
@@ -1459,59 +1467,31 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
     const isGameItem = (it) => Boolean(it && (it.genre || it.rating || String(it.type).toLowerCase() === 'game'));
     const getId = (it) => it?.id ?? it?.offer_id ?? it?._id ?? it?.title ?? JSON.stringify(it);
   
-    const fetchAddedOffers = async () => {
-      setLoadingAddedOffers(true);
-      try {
-        const res = await fetch(url, { credentials: 'include' });
-        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-        const data = (await res.json()) || [];
-        if (cancelled) return;
-      
-        const gamesItems = data.filter(isGameItem);
-        const offersItems = data.filter(it => !isGameItem(it));
-      
-        setAddedOffers(gamesItems.map(it => ({
-          ...it,
-          image: it.image || it.icon || defaultImage
-        })));
-      
-        setDynamicCategories(prev => prev.map(cat => {
-          if (cat.title !== 'Gaming Offers') return cat;
-          const existingIds = new Set(cat.games.map(g => String(g.id)));
-          const newOffers = offersItems
-            .filter(o => {
-              const id = getId(o);
-              return id && !existingIds.has(String(id));
-            })
-            .map(o => {
-              console.log("Backend offer data:", o);
-
-              return {
-                ...o,
-                id: getId(o),
-                type: o.type || 'OFFER',
-                title: o.title || o.name || 'Untitled Offer',
-                image: o.image || o.icon || defaultImage,
-                genre: o.genre || 'Unknown Genre',
-                price: o.price || o.payout || o.default_payout || '',
-                rating: parseFloat(o.rating) || 0,
-                value: o.price || o.payout || o.default_payout || o.value || '',
-                condition: o.condition || o.trafficType || '',
-                fullDescription: o.description || o.details || '',
-                isBackendOffer: true
-              };
-            });
-
-          return { ...cat, games: [...cat.games, ...newOffers] };
-        }));
-      
-      } catch (err) {
-        if (!cancelled) setAddedOffersError(err.message);
-        console.error('Failed loading added offers:', err);
-      } finally {
-        if (!cancelled) setLoadingAddedOffers(false);
+    
+// Also update the fetchAddedOffers function in HomePageContent
+const fetchAddedOffers = async () => {
+  setLoadingAddedOffers(true);
+  try {
+    const url = `${API_BASE_URL}/api/games`; // Use environment variable
+    const res = await fetch(url, { 
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
       }
-    };
+    });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const data = (await res.json()) || [];
+    if (cancelled) return;
+    
+    // ... rest of your existing code
+  } catch (err) {
+    if (!cancelled) setAddedOffersError(err.message);
+    console.error('Failed loading added offers:', err);
+  } finally {
+    if (!cancelled) setLoadingAddedOffers(false);
+  }
+};
   
     fetchAddedOffers();
     return () => { cancelled = true; };
