@@ -9,11 +9,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Use Render's PORT environment variable
+const PORT = process.env.PORT || 5000;
 const DATA_DIR = path.join(__dirname, "data");
 const CLICK_FILE = path.join(DATA_DIR, "clicks.ndjson");
 
-// CORS setup - Include your frontend domain
+// Enhanced CORS setup for production deployment
 const allowedOrigins = (
   process.env.ALLOWED_ORIGINS || 
   "http://localhost:3000,https://gamepro.pw,https://your-frontend-domain.com,https://your-frontend-domain.netlify.app,https://your-frontend-domain.vercel.app"
@@ -33,8 +33,8 @@ app.use(
   })
 );
 
-// Trust proxy for Render deployment
-app.set('trust proxy', 1);
+// Enhanced proxy trust configuration for better IP detection
+app.set('trust proxy', true); // Trust all proxies for IP detection
 
 app.use(express.json());
 
@@ -58,16 +58,20 @@ async function persistClick(clickObj) {
   await fs.appendFile(CLICK_FILE, line, "utf8");
 }
 
-// Function to get real client IP (optimized for Render)
+// Enhanced function to get real client IP (works with Render, Netlify, Vercel, etc.)
 function getRealClientIP(req) {
-  // Render uses X-Forwarded-For header
+  // Check multiple headers in order of preference
   let ip = 
-    req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
-    req.headers['x-real-ip'] ||                  
-    req.connection?.remoteAddress ||             
-    req.socket?.remoteAddress ||                 
-    req.connection?.socket?.remoteAddress ||     
-    req.ip ||                                    
+    req.headers['cf-connecting-ip'] ||          // Cloudflare
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() || // Standard proxy header
+    req.headers['x-real-ip'] ||                 // Nginx proxy
+    req.headers['x-client-ip'] ||               // Apache proxy
+    req.headers['x-forwarded'] ||               // General forwarded
+    req.headers['x-cluster-client-ip'] ||       // Cluster
+    req.connection?.remoteAddress ||            // Connection
+    req.socket?.remoteAddress ||                // Socket
+    req.connection?.socket?.remoteAddress ||    // Connection socket
+    req.ip ||                                   // Express IP
     'unknown';
 
   // Clean up IPv6 mapped IPv4 addresses
@@ -80,10 +84,115 @@ function getRealClientIP(req) {
     return '127.0.0.1';
   }
 
-  return ip;
+  // Remove port numbers if present
+  if (ip && ip.includes(':') && !ip.includes('::')) {
+    ip = ip.split(':')[0];
+  }
+
+  return ip || 'unknown';
 }
 
-// ----------------- Tracking Endpoint -----------------
+// Enhanced geo lookup with multiple fallbacks
+async function getGeoLocation(ip) {
+  if (!ip || ip === '127.0.0.1' || ip === 'localhost' || ip === 'unknown') {
+    return { 
+      city: "Local", 
+      region: "Local", 
+      country: "Localhost", 
+      countryCode: "LC",
+      latitude: null,
+      longitude: null 
+    };
+  }
+
+  const geoServices = [
+    `https://ipapi.co/${ip}/json/`,
+    `https://ipinfo.io/${ip}/json`,
+    `https://ip-api.com/json/${ip}`
+  ];
+
+  for (const serviceUrl of geoServices) {
+    try {
+      console.log(`Attempting geo lookup for IP: ${ip} using ${serviceUrl}`);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(serviceUrl, {
+        signal: controller.signal,
+        headers: {
+          'User-Agent': 'GamePro-Tracker/1.0'
+        }
+      });
+      clearTimeout(timeoutId);
+      
+      if (response.ok) {
+        const geoData = await response.json();
+        console.log(`Geo data received from ${serviceUrl}:`, geoData);
+        
+        // Handle different API response formats
+        let geo = {};
+        
+        if (serviceUrl.includes('ipapi.co')) {
+          if (geoData.error) {
+            console.log('ipapi.co error:', geoData.reason);
+            continue;
+          }
+          geo = {
+            city: geoData.city || null,
+            region: geoData.region || null,
+            country: geoData.country_name || null,
+            countryCode: geoData.country_code || null,
+            latitude: geoData.latitude || null,
+            longitude: geoData.longitude || null,
+          };
+        } else if (serviceUrl.includes('ipinfo.io')) {
+          const loc = geoData.loc ? geoData.loc.split(',') : [null, null];
+          geo = {
+            city: geoData.city || null,
+            region: geoData.region || null,
+            country: geoData.country || null,
+            countryCode: geoData.country || null,
+            latitude: loc[0] ? parseFloat(loc[0]) : null,
+            longitude: loc[1] ? parseFloat(loc[1]) : null,
+          };
+        } else if (serviceUrl.includes('ip-api.com')) {
+          if (geoData.status === 'fail') {
+            console.log('ip-api.com error:', geoData.message);
+            continue;
+          }
+          geo = {
+            city: geoData.city || null,
+            region: geoData.regionName || null,
+            country: geoData.country || null,
+            countryCode: geoData.countryCode || null,
+            latitude: geoData.lat || null,
+            longitude: geoData.lon || null,
+          };
+        }
+        
+        return geo;
+      } else {
+        console.log(`Geo API ${serviceUrl} response not ok:`, response.status);
+      }
+    } catch (error) {
+      console.error(`Geo lookup failed for ${serviceUrl}:`, error.message);
+    }
+  }
+
+  // Return unknown if all services fail
+  return { 
+    city: "Unknown", 
+    region: "Unknown", 
+    country: "Unknown", 
+    countryCode: "XX",
+    latitude: null,
+    longitude: null,
+    error: "All geo services failed"
+  };
+}
+
+// ----------------- Enhanced Tracking Endpoint -----------------
 app.post("/api/track-click", async (req, res) => {
   try {
     const {
@@ -100,75 +209,22 @@ app.post("/api/track-click", async (req, res) => {
       device = null,
     } = req.body || {};
 
-    // Get the real client IP
+    // Get the real client IP using enhanced detection
     const clientIP = getRealClientIP(req);
     
     console.log('=== TRACKING REQUEST ===');
     console.log('Client IP detected:', clientIP);
     console.log('Game Title:', gameTitle);
     console.log('User ID:', userId);
-    console.log('Headers (relevant):', {
-      'x-forwarded-for': req.headers['x-forwarded-for'],
-      'x-real-ip': req.headers['x-real-ip'],
-      'user-agent': req.headers['user-agent'],
-      'origin': req.headers['origin']
+    console.log('All Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Request IP info:', {
+      'req.ip': req.ip,
+      'connection.remoteAddress': req.connection?.remoteAddress,
+      'socket.remoteAddress': req.socket?.remoteAddress,
     });
 
-    // Geo lookup
-    let geo = null;
-    try {
-      if (clientIP && clientIP !== '127.0.0.1' && clientIP !== 'localhost' && clientIP !== 'unknown') {
-        console.log(`Attempting geo lookup for IP: ${clientIP}`);
-        
-        // Add timeout to geo lookup
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-        
-        const response = await fetch(`https://ipapi.co/${clientIP}/json/`, {
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        
-        if (response.ok) {
-          const geoData = await response.json();
-          console.log('Geo data received:', geoData);
-          
-          // Check for error in response
-          if (geoData.error) {
-            console.log('Geo API error:', geoData.reason);
-            throw new Error(geoData.reason);
-          }
-          
-          geo = {
-            city: geoData.city || null,
-            region: geoData.region || null,
-            country: geoData.country_name || null,
-            countryCode: geoData.country_code || null,
-            latitude: geoData.latitude || null,
-            longitude: geoData.longitude || null,
-          };
-        } else {
-          console.log('Geo API response not ok:', response.status);
-        }
-      } else {
-        // For localhost/development
-        geo = { 
-          city: "Local", 
-          region: "Local", 
-          country: "Localhost", 
-          countryCode: "LC" 
-        };
-      }
-    } catch (error) {
-      console.error('Geo lookup failed:', error.message);
-      geo = { 
-        city: "Unknown", 
-        region: "Unknown", 
-        country: "Unknown", 
-        countryCode: "XX",
-        error: error.message
-      };
-    }
+    // Enhanced geo lookup with multiple service fallbacks
+    const geo = await getGeoLocation(clientIP);
 
     // Duration calculation
     let duration = timeSpent;
@@ -178,7 +234,7 @@ app.post("/api/track-click", async (req, res) => {
       );
     }
 
-    // Create entry
+    // Create comprehensive entry
     const entry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       eventType,
@@ -195,14 +251,22 @@ app.post("/api/track-click", async (req, res) => {
       geo,
       metadata: metadata || null,
       timestamp: new Date().toISOString(),
-      // Add server info for debugging
+      // Add comprehensive server info for debugging
       server: {
         environment: process.env.NODE_ENV || 'development',
-        platform: 'render'
+        platform: 'render',
+        headers: {
+          'x-forwarded-for': req.headers['x-forwarded-for'],
+          'x-real-ip': req.headers['x-real-ip'],
+          'cf-connecting-ip': req.headers['cf-connecting-ip'],
+          'x-client-ip': req.headers['x-client-ip'],
+        },
+        expressIP: req.ip,
+        connectionIP: req.connection?.remoteAddress,
       }
     };
 
-    console.log('Entry created successfully');
+    console.log('Entry created successfully:', JSON.stringify(entry, null, 2));
     console.log('======================');
 
     await persistClick(entry);
@@ -210,7 +274,12 @@ app.post("/api/track-click", async (req, res) => {
       ok: true, 
       ip: clientIP, 
       geo,
-      message: 'Tracked successfully' 
+      message: 'Tracked successfully',
+      debug: {
+        detectedIP: clientIP,
+        geoService: geo.error ? 'failed' : 'success',
+        timestamp: entry.timestamp
+      }
     });
     
   } catch (err) {
@@ -314,24 +383,18 @@ app.delete("/api/games/:id", async (req, res) => {
   }
 });
 
-// ----------------- Game Endpoints -----------------
-// ... your /api/games endpoints ...
-
-// ✅ ADD THIS *ABOVE* the catch-all:
-app.get('/', (req, res) => {
-  res.send('✅ GamePro tracking backend is running on Render.');
-});
-
 // Catch-all for undefined routes
-app.use('*', (req, res) => {
+// ✅ Express v5+ catch-all syntax
+app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
+
 
 // ----------------- Start Server -----------------
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Tracking server running on port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Backend URL: https://gameproback.onrender.com`);
-  console.log(`📍 Trust proxy enabled for IP detection`);
+  console.log(`🔍 Enhanced IP detection enabled`);
+  console.log(`🛡️  Trust proxy: enabled for accurate IP detection`);
 });
-
