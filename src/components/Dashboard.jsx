@@ -11,9 +11,10 @@ import PostbackDocumentation from './PostbackDocumentation';
 import Tesseract from 'tesseract.js';
 import {
   ResponsiveContainer,
-  PieChart, Pie, Cell, Tooltip as RechartTooltip,
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend
+  PieChart, Pie, Cell, Tooltip,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend
 } from 'recharts';
+
 
 
 
@@ -67,6 +68,9 @@ export default function Dashboard() {
   const [games, setGames] = useState([]);
   const [trackedClicks, setTrackedClicks] = useState([]);
   const [sessions, setSessions] = useState([]);
+  
+  
+
   // --- analytics helpers ---
 const totalResponses = (sessions && sessions.length) || 0;
 
@@ -97,7 +101,7 @@ const deviceCounts = (sessions || []).reduce((acc, s) => {
   return acc;
 }, {});
 
-const pieData = Object.entries(deviceCounts).map(([name, value]) => ({ name, value }));
+
 
 const countryCounts = (sessions || []).reduce((acc, s) => {
   const country = (s.geo && s.geo.country) || s.country || s['Country'] || 'Unknown';
@@ -110,8 +114,36 @@ const barData = Object.entries(countryCounts)
   .sort((a, b) => b[1] - a[1])
   .slice(0, 6)
   .map(([country, count]) => ({ country, count }));
+  const pieData = Object.entries(deviceCounts).map(([name, value]) => ({
+  name,
+  value,
+  
+}));
+
+  
 
 const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
+// Colors for vertical bars (one color per country slice)
+const BAR_COLORS = ['#4e79a7','#f28e2b','#e15759','#76b7b2','#59a14f','#edc949'];
+
+// Extra datasets for charts
+const timeSpentData = (sessions || []).map(s => ({
+  session: s.sessionId,
+  time: s.timeSpent || 0,
+}));
+
+const clicksData = (sessions || []).map(s => ({
+  session: s.sessionId,
+  clicks: s.clicks || 0,
+}));
+
+const deviceBarData = Object.entries(deviceCounts).map(([device, count]) => ({
+  device,
+  count,
+}));
+
+
+
 
   // ----------------- Session tracking (add this) -----------------
 const sessionIdRef = useRef(
@@ -1170,60 +1202,37 @@ setSessions(arr);
           </div>
         );
             case 'game-tracking':
-              // --- analytics helpers ---
-const totalResponses = (sessions && sessions.length) || 0;
-
-// Sum conversions (handles conversions as number or '1'/'0')
-const totalConversions = (sessions || []).reduce((sum, s) => {
-  return sum + (Number(s.conversions) || 0);
-}, 0);
-
-const completionRate = totalResponses ? (totalConversions / totalResponses) * 100 : 0;
-
-// Average time in seconds: try several possible keys (timeSpent, time_spent, 'Time Spent (s)')
-const avgTimeSec = totalResponses
-  ? (sessions || []).reduce((sum, s) => {
-      return sum + (Number(s.timeSpent) || Number(s.time_spent) || Number(s['Time Spent (s)']) || 0);
-    }, 0) / totalResponses
-  : 0;
-const avgTimeDisplay = `${(avgTimeSec / 60).toFixed(1)}m`;
-
-// Device distribution (Mobile / Desktop / Tablet / Other)
-const deviceCounts = (sessions || []).reduce((acc, s) => {
-  const platform =
-    (s.device && (s.device.platform || s.device.platformName)) ||
-    (typeof s.device === 'string' ? s.device : '') ||
-    '';
-
-  const p = platform.toString().toLowerCase();
-  if (p.includes('android') || p.includes('iphone') || p.includes('mobile')) acc.Mobile = (acc.Mobile || 0) + 1;
-  else if (p.includes('ipad') || p.includes('tablet')) acc.Tablet = (acc.Tablet || 0) + 1;
-  else if (p.includes('win') || p.includes('mac') || p.includes('linux') || p.includes('desktop')) acc.Desktop = (acc.Desktop || 0) + 1;
-  else acc.Other = (acc.Other || 0) + 1;
-  return acc;
-}, {});
-
-const pieData = Object.entries(deviceCounts).map(([name, value]) => ({ name, value }));
-
-// Top countries bar chart (top 6)
-const countryCounts = (sessions || []).reduce((acc, s) => {
-  const country = (s.geo && s.geo.country) || s.country || s['Country'] || 'Unknown';
-  const key = country || 'Unknown';
-  acc[key] = (acc[key] || 0) + 1;
-  return acc;
-}, {});
-
-const barData = Object.entries(countryCounts)
-  .sort((a, b) => b[1] - a[1])
-  .slice(0, 6)
-  .map(([country, count]) => ({ country, count }));
-
-// Colors for pie
-const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
+             
 
   return (
     <div style={{ padding: 20 }}>
       <h2>Game Tracking — Sessions</h2>
+      <div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+  
+</div>
+{/* --- Top countries bar chart (colored bars) --- */}
+{barData && barData.length > 0 && (
+  <div style={{ width: '100%', height: 300, marginTop: 12, marginBottom: 20 }}>
+    
+  </div>
+)}
+{/* --- Time Spent per Session --- */}
+<div style={{ width: '100%', height: 300, marginTop: 20 }}>
+  
+</div>
+
+{/* --- Clicks per Session --- */}
+<div style={{ width: '100%', height: 300, marginTop: 20 }}>
+
+</div>
+
+{/* --- Devices Bar Chart --- */}
+<div style={{ width: '100%', height: 300, marginTop: 20 }}>
+ 
+</div>
+
+
+
       <div style={{ marginBottom: 12 }}>
         <button onClick={fetchSessionsSummary} style={{ marginRight: 8 }}>Refresh</button>
       </div>
@@ -1289,6 +1298,111 @@ const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
       </table>
     </div>
   );
+  case 'game-analytics':
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Game Analytics</h2>
+{/* Devices Pie Chart */}
+<div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+  <ResponsiveContainer>
+    <PieChart>
+      <Pie
+        data={pieData}
+        cx="50%"
+        cy="50%"
+        outerRadius={100}
+        label
+        dataKey="value"
+      >
+        {pieData.map((entry, index) => (
+          <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
+        ))}
+      </Pie>
+      <Tooltip />
+      <Legend />
+    </PieChart>
+  </ResponsiveContainer>
+</div>
+{/* Top Countries Bar Chart */}
+<div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+  <ResponsiveContainer>
+    <BarChart data={barData}>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis dataKey="country" />
+      <YAxis />
+      <Tooltip />
+      <Legend />
+      <Bar dataKey="count">
+        {barData.map((entry, index) => (
+          <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+        ))}
+      </Bar>
+    </BarChart>
+  </ResponsiveContainer>
+</div>
+
+      {/* Countries */}
+      <div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+        <ResponsiveContainer>
+          <BarChart data={barData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="country" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="count" name="Sessions">
+              {barData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={BAR_COLORS[index % BAR_COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Devices */}
+      <div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+        <ResponsiveContainer>
+          <BarChart data={deviceBarData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="device" />
+            <YAxis allowDecimals={false} />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="count" name="Devices" fill="#ffc658" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Time Spent */}
+      <div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+        <ResponsiveContainer>
+          <BarChart data={timeSpentData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="session" hide />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="time" name="Time (s)" fill="#8884d8" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      {/* Clicks */}
+      <div style={{ width: '100%', height: 300, marginBottom: 20 }}>
+        <ResponsiveContainer>
+          <BarChart data={clicksData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="session" hide />
+            <YAxis />
+            <Tooltip />
+            <Legend />
+            <Bar dataKey="clicks" name="Clicks" fill="#82ca9d" />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+
 
 
       
@@ -1299,6 +1413,7 @@ const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
         return null;
     }
   };
+  
 
   return (
     <div className="dashboard-wrapper"> {/* Removed inline style for background image */}
@@ -1383,6 +1498,10 @@ const PIE_COLORS = ['#d81b2a', '#ff7f7f', '#ffd24d', '#7ed28d', '#c0c0c0'];
           <li className={location.pathname === 'game-tracking' ? 'active' : ''}onClick={() => handleNavigationClick('game-tracking')}>
             Game Tracking
          </li>
+         <li className={location.pathname === 'game-analytics' ? 'active' : ''} onClick={() => handleNavigationClick('game-analytics')}>
+  Game Analytics
+</li>
+
 
         </ul>
         <div className="bottom-links">
