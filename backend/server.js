@@ -9,21 +9,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000; // Use Render's PORT environment variable
 const DATA_DIR = path.join(__dirname, "data");
 const CLICK_FILE = path.join(DATA_DIR, "clicks.ndjson");
 
-// ✅ CORS setup
-// Accept the FRONTEND_URL(s) from environment, comma-separated
-const allowedOrigins =
-  (process.env.ALLOWED_ORIGINS || "http://localhost:3000,https://gamepro.pw")
-    .split(",")
-    .map((s) => s.trim());
+// CORS setup - Include your frontend domain
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS || 
+  "http://localhost:3000,https://gamepro.pw,https://your-frontend-domain.com,https://your-frontend-domain.netlify.app,https://your-frontend-domain.vercel.app"
+).split(",").map((s) => s.trim());
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow requests with no origin (e.g. curl, mobile apps, server-to-server)
+      // Allow requests with no origin (mobile apps, server-to-server, curl)
       if (!origin) return callback(null, true);
       if (allowedOrigins.includes(origin)) return callback(null, true);
       console.warn("Blocked CORS origin:", origin);
@@ -34,8 +33,15 @@ app.use(
   })
 );
 
+// Trust proxy for Render deployment
+app.set('trust proxy', 1);
 
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 
 // ----------------- Helpers -----------------
 async function ensureDataDir() {
@@ -52,68 +58,119 @@ async function persistClick(clickObj) {
   await fs.appendFile(CLICK_FILE, line, "utf8");
 }
 
+// Function to get real client IP (optimized for Render)
+function getRealClientIP(req) {
+  // Render uses X-Forwarded-For header
+  let ip = 
+    req.headers['x-forwarded-for']?.split(',')[0]?.trim() || 
+    req.headers['x-real-ip'] ||                  
+    req.connection?.remoteAddress ||             
+    req.socket?.remoteAddress ||                 
+    req.connection?.socket?.remoteAddress ||     
+    req.ip ||                                    
+    'unknown';
+
+  // Clean up IPv6 mapped IPv4 addresses
+  if (ip && ip.startsWith('::ffff:')) {
+    ip = ip.replace('::ffff:', '');
+  }
+
+  // Handle localhost for development
+  if (ip === '::1' || ip === '127.0.0.1' || ip === 'localhost') {
+    return '127.0.0.1';
+  }
+
+  return ip;
+}
+
 // ----------------- Tracking Endpoint -----------------
 app.post("/api/track-click", async (req, res) => {
   try {
     const {
-      eventType = "click", // "session_start" | "click" | "session_end" | "conversion"
+      eventType = "click",
       sessionId = null,
       gameId = null,
       gameTitle = null,
       userId = null,
-      startTime = null, // passed from frontend
-      timeSpent = null, // seconds
+      startTime = null,
+      timeSpent = null,
       conversionId = null,
       metadata = null,
       ua = null,
       device = null,
     } = req.body || {};
 
-    // capture client IP
-    // capture client IP
-let rawIp =
-  req.headers["x-forwarded-for"]?.split(",")[0] ||
-  req.socket.remoteAddress ||
-  null;
-if (rawIp) rawIp = rawIp.replace(/^::ffff:/, "");
-let ip = rawIp === "::1" ? "127.0.0.1" : rawIp;
+    // Get the real client IP
+    const clientIP = getRealClientIP(req);
+    
+    console.log('=== TRACKING REQUEST ===');
+    console.log('Client IP detected:', clientIP);
+    console.log('Game Title:', gameTitle);
+    console.log('User ID:', userId);
+    console.log('Headers (relevant):', {
+      'x-forwarded-for': req.headers['x-forwarded-for'],
+      'x-real-ip': req.headers['x-real-ip'],
+      'user-agent': req.headers['user-agent'],
+      'origin': req.headers['origin']
+    });
 
-// === Local dev override (optional) ===
-// If you want local requests to resolve to India (for example) replace 103.21.77.246
-// with your public IP or remove this override for production.
-if (ip === "127.0.0.1") {
-  ip = "103.21.77.246";
-}
-
-
-    // ✅ Force India IP in local testing
-    let effectiveIp = ip;
-    if (ip === "127.0.0.1") {
-      effectiveIp = "103.21.77.246"; // Example India IP
-    }
-
-    // geo lookup
+    // Geo lookup
     let geo = null;
     try {
-      if (effectiveIp && effectiveIp !== "127.0.0.1") {
-        const r = await fetch(`https://ipapi.co/${effectiveIp}/json/`);
-        if (r.ok) {
-          const js = await r.json();
+      if (clientIP && clientIP !== '127.0.0.1' && clientIP !== 'localhost' && clientIP !== 'unknown') {
+        console.log(`Attempting geo lookup for IP: ${clientIP}`);
+        
+        // Add timeout to geo lookup
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+        
+        const response = await fetch(`https://ipapi.co/${clientIP}/json/`, {
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        
+        if (response.ok) {
+          const geoData = await response.json();
+          console.log('Geo data received:', geoData);
+          
+          // Check for error in response
+          if (geoData.error) {
+            console.log('Geo API error:', geoData.reason);
+            throw new Error(geoData.reason);
+          }
+          
           geo = {
-            city: js.city || null,
-            region: js.region || null,
-            country: js.country_name || null,
-            countryCode: js.country || js.country_code || null,
+            city: geoData.city || null,
+            region: geoData.region || null,
+            country: geoData.country_name || null,
+            countryCode: geoData.country_code || null,
+            latitude: geoData.latitude || null,
+            longitude: geoData.longitude || null,
           };
+        } else {
+          console.log('Geo API response not ok:', response.status);
         }
       } else {
-        geo = { country: "Localhost", countryCode: "LC" };
+        // For localhost/development
+        geo = { 
+          city: "Local", 
+          region: "Local", 
+          country: "Localhost", 
+          countryCode: "LC" 
+        };
       }
-    } catch {
-      geo = null;
+    } catch (error) {
+      console.error('Geo lookup failed:', error.message);
+      geo = { 
+        city: "Unknown", 
+        region: "Unknown", 
+        country: "Unknown", 
+        countryCode: "XX",
+        error: error.message
+      };
     }
 
-    // 🕒 duration calculation (always in seconds)
+    // Duration calculation
     let duration = timeSpent;
     if (eventType === "session_end" && startTime) {
       duration = Math.floor(
@@ -121,7 +178,7 @@ if (ip === "127.0.0.1") {
       );
     }
 
-    // save entry
+    // Create entry
     const entry = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       eventType,
@@ -129,22 +186,38 @@ if (ip === "127.0.0.1") {
       gameId,
       gameTitle,
       userId,
-      startTime: startTime || new Date().toISOString(), // ensure startTime is always present
+      startTime: startTime || new Date().toISOString(),
       timeSpent: duration,
       conversionId,
       ua: ua || req.headers["user-agent"] || null,
       device: device || null,
-      ip,
+      ip: clientIP,
       geo,
       metadata: metadata || null,
       timestamp: new Date().toISOString(),
+      // Add server info for debugging
+      server: {
+        environment: process.env.NODE_ENV || 'development',
+        platform: 'render'
+      }
     };
 
+    console.log('Entry created successfully');
+    console.log('======================');
+
     await persistClick(entry);
-    return res.status(201).json({ ok: true });
+    return res.status(201).json({ 
+      ok: true, 
+      ip: clientIP, 
+      geo,
+      message: 'Tracked successfully' 
+    });
+    
   } catch (err) {
-    console.error("track error:", err);
-    return res.status(500).json({ error: "internal" });
+    console.error("=== TRACKING ERROR ===");
+    console.error(err);
+    console.error("=====================");
+    return res.status(500).json({ error: "internal", details: err.message });
   }
 });
 
@@ -241,7 +314,15 @@ app.delete("/api/games/:id", async (req, res) => {
   }
 });
 
+// Catch-all for undefined routes
+app.use('*', (req, res) => {
+  res.status(404).json({ error: 'Route not found' });
+});
+
 // ----------------- Start Server -----------------
-app.listen(PORT, () => {
-  console.log(`✅ Tracking server running: http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Tracking server running on port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔗 Backend URL: https://gameproback.onrender.com`);
+  console.log(`📍 Trust proxy enabled for IP detection`);
 });
