@@ -315,9 +315,10 @@ app.delete("/api/games/:id", async (req, res) => {
 });
 
 // Catch-all for undefined routes
-app.use('*', (req, res) => {
+app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
 });
+
 
 // ----------------- Start Server -----------------
 app.listen(PORT, '0.0.0.0', () => {
