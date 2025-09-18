@@ -239,7 +239,7 @@ useEffect(() => {
       try {
         // response = await fetch(sendUrl, { method: 'GET' });
         console.log(`Sending postback to: ${sendUrl}`);
-        response = await fetch(`/proxy-postback?target=${encodeURIComponent(sendUrl)}`, { method: 'GET' });
+        response = await fetch(`http://localhost:5000/proxy-postback?target=${encodeURIComponent(sendUrl)}`, { method: 'GET' });
         text = await response.text();
 
         try { data = JSON.parse(text); } catch { data = text; }
@@ -322,10 +322,14 @@ useEffect(() => {
     setErrorPostbacks(null);
     try {
       const res = await fetch('http://localhost:5000/api/received-postbacks');
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
       const data = await res.json();
       setReceivedPostbacks(data);
     } catch (err) {
-      setErrorPostbacks('Failed to fetch postbacks');
+      console.error('Error fetching postbacks:', err);
+      setErrorPostbacks(`Failed to fetch postbacks: ${err.message}`);
     }
     setLoadingPostbacks(false);
   };
@@ -506,34 +510,74 @@ useEffect(() => {
     e.preventDefault();
     setPostbackLoading(true);
     setPostbackResponse(null);
-    console.log(postbackUrl);
-    console.log(previewUrl);
+    console.log('Postback URL:', postbackUrl);
+    console.log('Preview URL:', previewUrl);
+    
     try {
-      let response, text, data;
+      let response, result;
+      
       if (postbackMethod === 'GET') {
-        // Use backend proxy to avoid CORS issues with third-party postback URLs
-        response = await fetch(`/proxy-postback?target=${encodeURIComponent(previewUrl)}`, { method: 'GET' });
-        text = await response.text();
+        // Use the legacy proxy endpoint for GET requests (backward compatibility)
+        const proxyUrl = `http://localhost:5000/proxy-postback?target=${encodeURIComponent(previewUrl)}`;
+        console.log('Sending GET request to proxy:', proxyUrl);
+        
+        response = await fetch(proxyUrl, { 
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          }
+        });
+        
+        const text = await response.text();
         try {
-          data = JSON.parse(text);
+          result = JSON.parse(text);
         } catch {
-          data = text;
+          result = text;
         }
-        setPostbackResponse({ status: response.status, data });
+        
+        setPostbackResponse({
+          status: response.status,
+          data: result,
+          headers: Object.fromEntries(response.headers.entries()),
+          success: response.ok
+        });
+        
       } else {
-        // Use backend proxy for POST postbacks
-        response = await fetch('/proxy-postback', {
+        // Use the legacy proxy endpoint for POST requests
+        console.log('Sending POST request to:', postbackUrl);
+        console.log('Payload:', postPayload);
+        
+        response = await fetch('http://localhost:5000/proxy-postback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ url: postbackUrl, data: postPayload }),
+          body: JSON.stringify({
+            url: postbackUrl,
+            data: postPayload
+          })
         });
-        const proxyResult = await response.text();
-        setPostbackResponse({ status: proxyResult.status_code, data: proxyResult.response_text });
+        
+        result = await response.json();
+        
+        setPostbackResponse({
+          status: result.status_code || response.status,
+          status_text: result.status_text || response.statusText,
+          data: result.response_text || result,
+          headers: result.headers || Object.fromEntries(response.headers.entries()),
+          success: response.ok
+        });
       }
+      
     } catch (err) {
-      setPostbackResponse({ error: err.message });
+      console.error('Error sending postback:', err);
+      setPostbackResponse({ 
+        error: 'Failed to send postback',
+        details: err.message,
+        success: false
+      });
+    } finally {
+      setPostbackLoading(false);
     }
-    setPostbackLoading(false);
   };
 
 
@@ -783,10 +827,10 @@ setSessions(arr);
         );
       case 'postback-sender':
         return (
-          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
-            <h2>Postback Sender</h2>
+          <div style={{ maxWidth: 600, margin: '2rem auto', padding: 24, background: '#ffffff', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #e0e0e0' }}>
+            <h2 style={{ color: '#2c3e50', marginBottom: 20, borderBottom: '2px solid #3498db', paddingBottom: 10 }}>Postback Sender</h2>
             <form onSubmit={handlePostbackSend} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-              <label>
+              <label style={{ color: '#2c3e50', fontWeight: '500' }}>
                 Base URL:
                 <input
                   type="url"
@@ -794,139 +838,608 @@ setSessions(arr);
                   onChange={e => setPostbackUrl(e.target.value)}
                   placeholder="https://example.com/postback"
                   required
-                  style={{ width: '100%', padding: 8, marginTop: 4 }}
+                  style={{ 
+                    width: '100%', 
+                    padding: 12, 
+                    marginTop: 6, 
+                    border: '2px solid #bdc3c7',
+                    borderRadius: 6,
+                    fontSize: 14,
+                    backgroundColor: '#f8f9fa',
+                    color: '#2c3e50',
+                    outline: 'none',
+                    transition: 'border-color 0.3s ease'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#3498db'}
+                  onBlur={(e) => e.target.style.borderColor = '#bdc3c7'}
                 />
               </label>
-              <label style={{ marginTop: 8 }}>
+              <label style={{ marginTop: 8, color: '#2c3e50', fontWeight: '500' }}>
                 Method:
-                <select value={postbackMethod} onChange={e => setPostbackMethod(e.target.value)} style={{ marginLeft: 8 }}>
+                <select 
+                  value={postbackMethod} 
+                  onChange={e => setPostbackMethod(e.target.value)} 
+                  style={{ 
+                    marginLeft: 8, 
+                    padding: 8,
+                    border: '2px solid #bdc3c7',
+                    borderRadius: 6,
+                    backgroundColor: '#f8f9fa',
+                    color: '#2c3e50',
+                    fontSize: 14
+                  }}
+                >
                   <option value="POST">POST</option>
                   <option value="GET">GET</option>
                 </select>
               </label>
-              <fieldset style={{ border: '1px solid #ddd', borderRadius: 6, padding: 12, marginTop: 12 }}>
-                <legend>Core Fields</legend>
+              <fieldset style={{ border: '2px solid #e74c3c', borderRadius: 8, padding: 16, marginTop: 16, backgroundColor: '#fdf2f2' }}>
+                <legend style={{ color: '#e74c3c', fontWeight: 'bold', padding: '0 8px' }}>Core Fields</legend>
                 {Object.entries(coreFields).map(([k, v]) => (
-                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <input type="checkbox" checked={v.enabled} onChange={e => handleCoreFieldChange(k, 'enabled', e.target.checked)} />
-                    <label style={{ minWidth: 90 }}>{k}</label>
+                  <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={v.enabled} 
+                      onChange={e => handleCoreFieldChange(k, 'enabled', e.target.checked)}
+                      style={{ transform: 'scale(1.2)' }}
+                    />
+                    <label style={{ minWidth: 90, color: '#2c3e50', fontWeight: '500' }}>{k}</label>
                     <input
                       type="text"
                       value={v.value}
                       onChange={e => handleCoreFieldChange(k, 'value', e.target.value)}
                       disabled={!v.enabled}
-                      style={{ flex: 1, padding: 4 }}
+                      style={{ 
+                        flex: 1, 
+                        padding: 8,
+                        border: '1px solid #bdc3c7',
+                        borderRadius: 4,
+                        backgroundColor: v.enabled ? '#ffffff' : '#ecf0f1',
+                        color: '#2c3e50',
+                        fontSize: 14
+                      }}
                     />
                   </div>
                 ))}
               </fieldset>
-              <fieldset style={{ border: '1px solid #ddd', borderRadius: 6, padding: 12, marginTop: 12 }}>
-                <legend>Custom Fields</legend>
+              <fieldset style={{ border: '2px solid #f39c12', borderRadius: 8, padding: 16, marginTop: 16, backgroundColor: '#fef9e7' }}>
+                <legend style={{ color: '#f39c12', fontWeight: 'bold', padding: '0 8px' }}>Custom Fields</legend>
                 {customFields.map((f, idx) => (
-                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <input type="checkbox" checked={f.enabled} onChange={e => updateCustomField(idx, 'enabled', e.target.checked)} />
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={f.enabled} 
+                      onChange={e => updateCustomField(idx, 'enabled', e.target.checked)}
+                      style={{ transform: 'scale(1.2)' }}
+                    />
                     <input
                       type="text"
                       placeholder="Key"
                       value={f.key}
                       onChange={e => updateCustomField(idx, 'key', e.target.value)}
-                      style={{ width: 120, padding: 4 }}
+                      style={{ 
+                        width: 120, 
+                        padding: 8,
+                        border: '1px solid #bdc3c7',
+                        borderRadius: 4,
+                        backgroundColor: '#ffffff',
+                        color: '#2c3e50',
+                        fontSize: 14
+                      }}
                     />
                     <input
                       type="text"
                       placeholder="Value"
                       value={f.value}
                       onChange={e => updateCustomField(idx, 'value', e.target.value)}
-                      style={{ flex: 1, padding: 4 }}
+                      style={{ 
+                        flex: 1, 
+                        padding: 8,
+                        border: '1px solid #bdc3c7',
+                        borderRadius: 4,
+                        backgroundColor: '#ffffff',
+                        color: '#2c3e50',
+                        fontSize: 14
+                      }}
                     />
-                    <button type="button" onClick={() => removeCustomField(idx)} style={{ color: 'red', border: 'none', background: 'none', fontWeight: 'bold', fontSize: 18, cursor: 'pointer' }}>×</button>
+                    <button 
+                      type="button" 
+                      onClick={() => removeCustomField(idx)} 
+                      style={{ 
+                        color: '#e74c3c', 
+                        border: 'none', 
+                        background: 'none', 
+                        fontWeight: 'bold', 
+                        fontSize: 20, 
+                        cursor: 'pointer',
+                        padding: '4px 8px',
+                        borderRadius: 4,
+                        transition: 'background-color 0.2s'
+                      }}
+                      onMouseOver={(e) => e.target.style.backgroundColor = '#fadbd8'}
+                      onMouseOut={(e) => e.target.style.backgroundColor = 'transparent'}
+                    >×</button>
                   </div>
                 ))}
-                <button type="button" onClick={addCustomField} style={{ marginTop: 6 }}>+ Add Custom Field</button>
+                <button 
+                  type="button" 
+                  onClick={addCustomField} 
+                  style={{ 
+                    marginTop: 8,
+                    padding: '8px 16px',
+                    backgroundColor: '#27ae60',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                    fontWeight: '500',
+                    fontSize: 14,
+                    transition: 'background-color 0.3s'
+                  }}
+                  onMouseOver={(e) => e.target.style.backgroundColor = '#229954'}
+                  onMouseOut={(e) => e.target.style.backgroundColor = '#27ae60'}
+                >+ Add Custom Field</button>
               </fieldset>
-              <div style={{ marginTop: 16, background: '#130e0eff', padding: 12, borderRadius: 4 }}>
-                <strong>Preview URL:</strong>
-                <div style={{ wordBreak: 'break-all', color: '#333', margin: '6px 0' }}>{previewUrl}</div>
+              <div style={{ marginTop: 20, background: '#e8f5e8', padding: 16, borderRadius: 8, border: '2px solid #27ae60' }}>
+                <strong style={{ color: '#27ae60', fontSize: 16 }}>Preview URL:</strong>
+                <div style={{ 
+                  wordBreak: 'break-all', 
+                  color: '#2c3e50', 
+                  margin: '8px 0',
+                  padding: 12,
+                  backgroundColor: '#ffffff',
+                  border: '1px solid #bdc3c7',
+                  borderRadius: 6,
+                  fontFamily: 'monospace',
+                  fontSize: 14,
+                  lineHeight: 1.4,
+                  minHeight: 20
+                }}>{previewUrl || 'Enter a base URL to see preview'}</div>
                 {postbackMethod === 'POST' && (
                   <>
-                    <strong>POST Payload:</strong>
-                    <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all', background: '#eee', padding: 8, borderRadius: 4 }}>{JSON.stringify(postPayload, null, 2)}</pre>
+                    <strong style={{ color: '#27ae60', fontSize: 16 }}>POST Payload:</strong>
+                    <pre style={{ 
+                      whiteSpace: 'pre-wrap', 
+                      wordBreak: 'break-all', 
+                      background: '#ffffff', 
+                      padding: 12, 
+                      borderRadius: 6,
+                      border: '1px solid #bdc3c7',
+                      color: '#2c3e50',
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                      marginTop: 8,
+                      overflow: 'auto'
+                    }}>{JSON.stringify(postPayload, null, 2)}</pre>
                   </>
                 )}
               </div>
-              <button type="submit" disabled={postbackLoading || !postbackUrl} style={{ padding: 8 }}>
-                {postbackLoading ? 'Sending...' : 'Send Postback'}
+              <button 
+                type="submit" 
+                disabled={postbackLoading || !postbackUrl} 
+                style={{ 
+                  padding: '12px 24px',
+                  marginTop: 20,
+                  backgroundColor: postbackLoading || !postbackUrl ? '#bdc3c7' : '#3498db',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 16,
+                  fontWeight: 'bold',
+                  cursor: postbackLoading || !postbackUrl ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.3s ease',
+                  boxShadow: postbackLoading || !postbackUrl ? 'none' : '0 4px 8px rgba(52, 152, 219, 0.3)'
+                }}
+                onMouseOver={(e) => {
+                  if (!postbackLoading && postbackUrl) {
+                    e.target.style.backgroundColor = '#2980b9';
+                    e.target.style.transform = 'translateY(-2px)';
+                  }
+                }}
+                onMouseOut={(e) => {
+                  if (!postbackLoading && postbackUrl) {
+                    e.target.style.backgroundColor = '#3498db';
+                    e.target.style.transform = 'translateY(0)';
+                  }
+                }}
+              >
+                {postbackLoading ? '🔄 Sending...' : '🚀 Send Postback'}
               </button>
             </form>
             {postbackResponse && (
-              <div style={{ marginTop: 16, background: '#f6f6f6', padding: 12, borderRadius: 4 }}>
-                <strong>Response:</strong>
-                <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>{JSON.stringify(postbackResponse, null, 2)}</pre>
+              <div style={{ 
+                marginTop: 20, 
+                background: postbackResponse.success !== false ? '#e8f5e8' : '#fdf2f2', 
+                padding: 16, 
+                borderRadius: 8,
+                border: `2px solid ${postbackResponse.success !== false ? '#27ae60' : '#e74c3c'}`
+              }}>
+                <strong style={{ 
+                  color: postbackResponse.success !== false ? '#27ae60' : '#e74c3c', 
+                  fontSize: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
+                }}>
+                  {postbackResponse.success !== false ? '✅' : '❌'} Response:
+                  {postbackResponse.status && (
+                    <span style={{ 
+                      backgroundColor: postbackResponse.status >= 200 && postbackResponse.status < 300 ? '#27ae60' : '#e74c3c',
+                      color: 'white',
+                      padding: '2px 8px',
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontWeight: 'normal'
+                    }}>
+                      {postbackResponse.status}
+                    </span>
+                  )}
+                </strong>
+                <pre style={{ 
+                  whiteSpace: 'pre-wrap', 
+                  wordBreak: 'break-all',
+                  backgroundColor: '#ffffff',
+                  padding: 12,
+                  borderRadius: 6,
+                  border: '1px solid #bdc3c7',
+                  color: '#2c3e50',
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  lineHeight: 1.4,
+                  marginTop: 8,
+                  overflow: 'auto',
+                  maxHeight: 300
+                }}>{JSON.stringify(postbackResponse, null, 2)}</pre>
               </div>
             )}
           </div>
         );
       case 'postback-receiver':
         return (
-          <div style={{ maxWidth: 800, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
-            <h2>Postback Receiver</h2>
-            <div style={{ marginTop: 16, color: '#555' }}>
-              <button onClick={fetchPostbacks} style={{ marginBottom: 16 }}>Refresh</button>
-              {/* Filters */}
-              <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+          <div style={{ maxWidth: 1000, margin: '2rem auto', padding: 24, background: '#ffffff', borderRadius: 8, boxShadow: '0 2px 8px rgba(0,0,0,0.1)', border: '1px solid #e0e0e0' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '2px solid #9b59b6', paddingBottom: 10 }}>
+              <h2 style={{ color: '#2c3e50', margin: 0 }}>📨 Postback Receiver</h2>
+              <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                <span style={{ 
+                  backgroundColor: '#27ae60', 
+                  color: 'white', 
+                  padding: '4px 12px', 
+                  borderRadius: 20, 
+                  fontSize: 12,
+                  fontWeight: 'bold'
+                }}>
+                  {filteredPostbacks.length} postbacks
+                </span>
+                <button 
+                  onClick={fetchPostbacks} 
+                  disabled={loadingPostbacks}
+                  style={{ 
+                    padding: '8px 16px',
+                    backgroundColor: loadingPostbacks ? '#bdc3c7' : '#3498db',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: loadingPostbacks ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    fontSize: 14,
+                    transition: 'background-color 0.3s'
+                  }}
+                  onMouseOver={(e) => {
+                    if (!loadingPostbacks) e.target.style.backgroundColor = '#2980b9';
+                  }}
+                  onMouseOut={(e) => {
+                    if (!loadingPostbacks) e.target.style.backgroundColor = '#3498db';
+                  }}
+                >
+                  {loadingPostbacks ? '🔄 Loading...' : '🔄 Refresh'}
+                </button>
+              </div>
+            </div>
+            
+            {/* Info Section */}
+            <div style={{ 
+              backgroundColor: '#e8f4fd', 
+              border: '2px solid #3498db', 
+              borderRadius: 8, 
+              padding: 16, 
+              marginBottom: 20 
+            }}>
+              <h3 style={{ color: '#2980b9', margin: '0 0 8px 0', fontSize: 16 }}>ℹ️ How to Use Postback Receiver</h3>
+              <p style={{ color: '#2c3e50', margin: 0, lineHeight: 1.5 }}>
+                This receiver captures all incoming postback requests. Your postback URL is: 
+                <code style={{ 
+                  backgroundColor: '#ffffff', 
+                  padding: '2px 6px', 
+                  borderRadius: 4, 
+                  border: '1px solid #bdc3c7',
+                  margin: '0 4px',
+                  fontFamily: 'monospace'
+                }}>
+                  http://localhost:5000/api/receive-postback
+                </code>
+                Use the filters below to search through received postbacks.
+              </p>
+            </div>
+
+            {/* Filters */}
+            <div style={{ 
+              backgroundColor: '#f8f9fa', 
+              border: '2px solid #e74c3c', 
+              borderRadius: 8, 
+              padding: 16, 
+              marginBottom: 20 
+            }}>
+              <h3 style={{ color: '#e74c3c', margin: '0 0 12px 0', fontSize: 16 }}>🔍 Filters</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                 <div>
-                  <label style={{ fontWeight: 500 }}>Filter by IP:</label><br />
-                  <input type="text" value={filterIp} onChange={e => setFilterIp(e.target.value)} placeholder="e.g. 127.0.0.1" style={{ padding: 6, width: 150, borderRadius: 4, border: '1px solid #ccc' }} />
+                  <label style={{ fontWeight: 600, color: '#2c3e50', display: 'block', marginBottom: 4 }}>Filter by IP:</label>
+                  <input 
+                    type="text" 
+                    value={filterIp} 
+                    onChange={e => setFilterIp(e.target.value)} 
+                    placeholder="e.g. 127.0.0.1" 
+                    style={{ 
+                      padding: 8, 
+                      width: '100%', 
+                      borderRadius: 6, 
+                      border: '2px solid #bdc3c7',
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      color: '#2c3e50'
+                    }} 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500 }}>Filter by Date:</label><br />
-                  <input type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} style={{ padding: 6, width: 150, borderRadius: 4, border: '1px solid #ccc' }} />
+                  <label style={{ fontWeight: 600, color: '#2c3e50', display: 'block', marginBottom: 4 }}>Filter by Date:</label>
+                  <input 
+                    type="date" 
+                    value={filterDate} 
+                    onChange={e => setFilterDate(e.target.value)} 
+                    style={{ 
+                      padding: 8, 
+                      width: '100%', 
+                      borderRadius: 6, 
+                      border: '2px solid #bdc3c7',
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      color: '#2c3e50'
+                    }} 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500 }}>Filter by Time (text):</label><br />
-                  <input type="text" value={filterTime} onChange={e => setFilterTime(e.target.value)} placeholder="e.g. 12:30" style={{ padding: 6, width: 120, borderRadius: 4, border: '1px solid #ccc' }} />
+                  <label style={{ fontWeight: 600, color: '#2c3e50', display: 'block', marginBottom: 4 }}>Filter by Time:</label>
+                  <input 
+                    type="text" 
+                    value={filterTime} 
+                    onChange={e => setFilterTime(e.target.value)} 
+                    placeholder="e.g. 12:30" 
+                    style={{ 
+                      padding: 8, 
+                      width: '100%', 
+                      borderRadius: 6, 
+                      border: '2px solid #bdc3c7',
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      color: '#2c3e50'
+                    }} 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500 }}>Filter by Body:</label><br />
-                  <input type="text" value={filterBody} onChange={e => setFilterBody(e.target.value)} placeholder="Search body..." style={{ padding: 6, width: 200, borderRadius: 4, border: '1px solid #ccc' }} />
+                  <label style={{ fontWeight: 600, color: '#2c3e50', display: 'block', marginBottom: 4 }}>Filter by Body:</label>
+                  <input 
+                    type="text" 
+                    value={filterBody} 
+                    onChange={e => setFilterBody(e.target.value)} 
+                    placeholder="Search body content..." 
+                    style={{ 
+                      padding: 8, 
+                      width: '100%', 
+                      borderRadius: 6, 
+                      border: '2px solid #bdc3c7',
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      color: '#2c3e50'
+                    }} 
+                  />
                 </div>
                 <div>
-                  <label style={{ fontWeight: 500 }}>Filter by Headers:</label><br />
-                  <input type="text" value={filterHeaders} onChange={e => setFilterHeaders(e.target.value)} placeholder="Search headers..." style={{ padding: 6, width: 200, borderRadius: 4, border: '1px solid #ccc' }} />
+                  <label style={{ fontWeight: 600, color: '#2c3e50', display: 'block', marginBottom: 4 }}>Filter by Headers:</label>
+                  <input 
+                    type="text" 
+                    value={filterHeaders} 
+                    onChange={e => setFilterHeaders(e.target.value)} 
+                    placeholder="Search headers..." 
+                    style={{ 
+                      padding: 8, 
+                      width: '100%', 
+                      borderRadius: 6, 
+                      border: '2px solid #bdc3c7',
+                      fontSize: 14,
+                      backgroundColor: '#ffffff',
+                      color: '#2c3e50'
+                    }} 
+                  />
                 </div>
               </div>
-              {loadingPostbacks && <div>Loading...</div>}
-              {errorPostbacks && <div style={{ color: 'red' }}>{errorPostbacks}</div>}
-              {filteredPostbacks.length === 0 && !loadingPostbacks && <div>No postbacks match your filters.</div>}
-              {filteredPostbacks.length > 0 && (
-                <div style={{ maxHeight: 500, overflowY: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', background: '#0f0808ff' }}>
+            </div>
+            {/* Status Messages */}
+            {loadingPostbacks && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: 20, 
+                backgroundColor: '#e8f4fd', 
+                borderRadius: 8, 
+                border: '2px solid #3498db',
+                color: '#2980b9',
+                fontSize: 16,
+                fontWeight: '500'
+              }}>
+                🔄 Loading postbacks...
+              </div>
+            )}
+            
+            {errorPostbacks && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: 20, 
+                backgroundColor: '#fdf2f2', 
+                borderRadius: 8, 
+                border: '2px solid #e74c3c',
+                color: '#c0392b',
+                fontSize: 16,
+                fontWeight: '500'
+              }}>
+                ❌ {errorPostbacks}
+              </div>
+            )}
+            
+            {filteredPostbacks.length === 0 && !loadingPostbacks && !errorPostbacks && (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: 40, 
+                backgroundColor: '#fef9e7', 
+                borderRadius: 8, 
+                border: '2px solid #f39c12',
+                color: '#d68910'
+              }}>
+                <h3 style={{ margin: '0 0 8px 0' }}>📭 No Postbacks Found</h3>
+                <p style={{ margin: 0, fontSize: 14 }}>
+                  No postbacks match your current filters. Try adjusting the filters or send a test postback.
+                </p>
+              </div>
+            )}
+            
+            {filteredPostbacks.length > 0 && (
+              <div style={{ 
+                borderRadius: 8, 
+                border: '2px solid #27ae60', 
+                overflow: 'hidden',
+                backgroundColor: '#ffffff'
+              }}>
+                <div style={{ 
+                  backgroundColor: '#27ae60', 
+                  color: 'white', 
+                  padding: 12, 
+                  fontWeight: 'bold',
+                  fontSize: 16
+                }}>
+                  📋 Received Postbacks ({filteredPostbacks.length})
+                </div>
+                <div style={{ maxHeight: 600, overflowY: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ background: '#110808ff' }}>
-                        <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>#</th>
-                        <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Received At</th>
-                        <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>IP</th>
-                        <th style={{ padding: '8px', borderBottom: '1px solid #eee', textAlign: 'left' }}>Details</th>
+                      <tr style={{ backgroundColor: '#f8f9fa', borderBottom: '2px solid #e9ecef' }}>
+                        <th style={{ padding: 12, textAlign: 'left', color: '#2c3e50', fontWeight: 'bold' }}>#</th>
+                        <th style={{ padding: 12, textAlign: 'left', color: '#2c3e50', fontWeight: 'bold' }}>Method</th>
+                        <th style={{ padding: 12, textAlign: 'left', color: '#2c3e50', fontWeight: 'bold' }}>Received At</th>
+                        <th style={{ padding: 12, textAlign: 'left', color: '#2c3e50', fontWeight: 'bold' }}>IP Address</th>
+                        <th style={{ padding: 12, textAlign: 'left', color: '#2c3e50', fontWeight: 'bold' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
                       {filteredPostbacks.map((pb, idx) => (
                         <React.Fragment key={idx}>
-                          <tr style={{ borderBottom: '1px solid #eee' }}>
-                            <td style={{ padding: '8px' }}>{idx + 1}</td>
-                            <td style={{ padding: '8px' }}>{pb.receivedAt}</td>
-                            <td style={{ padding: '8px' }}>{pb.ip}</td>
-                            <td style={{ padding: '8px' }}>
-                              <button onClick={() => toggleRow(idx)} style={{ padding: '4px 12px', borderRadius: 4, border: 'none', background: '#1976d2', color: '#fff', cursor: 'pointer' }}>
-                                {expandedRows.includes(idx) ? 'Hide' : 'Details'}
+                          <tr style={{ 
+                            borderBottom: '1px solid #e9ecef',
+                            backgroundColor: idx % 2 === 0 ? '#ffffff' : '#f8f9fa',
+                            transition: 'background-color 0.2s'
+                          }}
+                          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#e8f5e8'}
+                          onMouseOut={(e) => e.currentTarget.style.backgroundColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa'}
+                          >
+                            <td style={{ padding: 12, color: '#2c3e50', fontWeight: 'bold' }}>{idx + 1}</td>
+                            <td style={{ padding: 12 }}>
+                              <span style={{
+                                backgroundColor: pb.method === 'GET' ? '#3498db' : pb.method === 'POST' ? '#e74c3c' : '#f39c12',
+                                color: 'white',
+                                padding: '2px 8px',
+                                borderRadius: 4,
+                                fontSize: 12,
+                                fontWeight: 'bold'
+                              }}>
+                                {pb.method || 'N/A'}
+                              </span>
+                            </td>
+                            <td style={{ padding: 12, color: '#2c3e50', fontFamily: 'monospace', fontSize: 13 }}>
+                              {new Date(pb.receivedAt).toLocaleString()}
+                            </td>
+                            <td style={{ padding: 12, color: '#2c3e50', fontFamily: 'monospace' }}>{pb.ip || 'Unknown'}</td>
+                            <td style={{ padding: 12 }}>
+                              <button 
+                                onClick={() => toggleRow(idx)} 
+                                style={{ 
+                                  padding: '6px 12px', 
+                                  borderRadius: 6, 
+                                  border: 'none', 
+                                  background: expandedRows.includes(idx) ? '#e74c3c' : '#3498db', 
+                                  color: '#fff', 
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: 'bold',
+                                  transition: 'all 0.2s'
+                                }}
+                                onMouseOver={(e) => {
+                                  e.target.style.transform = 'scale(1.05)';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.target.style.transform = 'scale(1)';
+                                }}
+                              >
+                                {expandedRows.includes(idx) ? '👁️ Hide' : '🔍 Details'}
                               </button>
                             </td>
                           </tr>
                           {expandedRows.includes(idx) && (
                             <tr>
-                              <td colSpan={4} style={{ background: '#1f0b0bff', padding: 16 }}>
-                                <div><strong>Headers:</strong> <pre style={{ background: '#fff', padding: 8, borderRadius: 4, marginBottom: 8 }}>{JSON.stringify(pb.headers, null, 2)}</pre></div>
-                                <div><strong>Body:</strong> <pre style={{ background: '#fff', padding: 8, borderRadius: 4 }}>{JSON.stringify(pb.body, null, 2)}</pre></div>
+                              <td colSpan={5} style={{ backgroundColor: '#f8f9fa', padding: 20, borderBottom: '2px solid #e9ecef' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                                  <div>
+                                    <h4 style={{ color: '#e74c3c', margin: '0 0 8px 0', fontSize: 14 }}>📋 Headers:</h4>
+                                    <pre style={{ 
+                                      background: '#ffffff', 
+                                      padding: 12, 
+                                      borderRadius: 6, 
+                                      border: '1px solid #bdc3c7',
+                                      color: '#2c3e50',
+                                      fontSize: 12,
+                                      lineHeight: 1.4,
+                                      overflow: 'auto',
+                                      maxHeight: 200
+                                    }}>{JSON.stringify(pb.headers, null, 2)}</pre>
+                                  </div>
+                                  <div>
+                                    <h4 style={{ color: '#27ae60', margin: '0 0 8px 0', fontSize: 14 }}>📦 Body/Query:</h4>
+                                    <pre style={{ 
+                                      background: '#ffffff', 
+                                      padding: 12, 
+                                      borderRadius: 6, 
+                                      border: '1px solid #bdc3c7',
+                                      color: '#2c3e50',
+                                      fontSize: 12,
+                                      lineHeight: 1.4,
+                                      overflow: 'auto',
+                                      maxHeight: 200
+                                    }}>{JSON.stringify(pb.body || pb.query || {}, null, 2)}</pre>
+                                  </div>
+                                </div>
+                                {pb.url && (
+                                  <div style={{ marginTop: 16 }}>
+                                    <h4 style={{ color: '#9b59b6', margin: '0 0 8px 0', fontSize: 14 }}>🔗 URL:</h4>
+                                    <div style={{ 
+                                      background: '#ffffff', 
+                                      padding: 12, 
+                                      borderRadius: 6, 
+                                      border: '1px solid #bdc3c7',
+                                      color: '#2c3e50',
+                                      fontFamily: 'monospace',
+                                      fontSize: 12,
+                                      wordBreak: 'break-all'
+                                    }}>
+                                      {pb.url}
+                                    </div>
+                                  </div>
+                                )}
                               </td>
                             </tr>
                           )}
@@ -935,8 +1448,8 @@ setSessions(arr);
                     </tbody>
                   </table>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         );
       case 'postback-documentation':

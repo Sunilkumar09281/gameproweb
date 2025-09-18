@@ -209,6 +209,151 @@ app.use(express.urlencoded({ extended: true }));
 // Add proxy routes
 app.use('/api', proxyRouter);
 
+// Legacy proxy endpoints for backward compatibility
+app.get('/proxy-postback', async (req, res) => {
+  const { target } = req.query;
+  
+  if (!target) {
+    return res.status(400).json({ error: 'Target URL is required' });
+  }
+
+  // Validate URL format
+  try {
+    new URL(target);
+  } catch (urlError) {
+    return res.status(400).json({ error: 'Invalid URL format' });
+  }
+
+  try {
+    console.log(`[${new Date().toISOString()}] Proxying GET request to: ${target}`);
+    
+    const startTime = Date.now();
+    const response = await fetch(target, { 
+      method: 'GET',
+      headers: {
+        'User-Agent': 'PostbackProxy/1.0',
+        'Accept': 'application/json, text/plain, */*'
+      },
+      timeout: 10000 // 10 second timeout
+    });
+    
+    const responseTime = Date.now() - startTime;
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = text;
+    }
+
+    // Save the postback with enhanced metadata
+    const postbacks = await loadPostbacks();
+    postbacks.push({
+      id: require('uuid').v4(),
+      method: 'GET',
+      receivedAt: new Date().toISOString(),
+      url: target,
+      status: response.status,
+      statusText: response.statusText,
+      responseTime: `${responseTime}ms`,
+      headers: Object.fromEntries(response.headers.entries()),
+      body: data,
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown'
+    });
+    await savePostbacks(postbacks);
+
+    console.log(`[${new Date().toISOString()}] GET request completed: ${response.status} (${responseTime}ms)`);
+    res.status(response.status).send(text);
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Proxy GET error:`, error.message);
+    res.status(500).json({ 
+      error: 'Failed to proxy request',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.post('/proxy-postback', async (req, res) => {
+  const { url, data } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'URL is required' });
+  }
+
+  // Validate URL format
+  try {
+    new URL(url);
+  } catch (urlError) {
+    return res.status(400).json({ error: 'Invalid URL format' });
+  }
+
+  try {
+    console.log(`[${new Date().toISOString()}] Proxying POST request to: ${url}`);
+    console.log('Payload:', JSON.stringify(data, null, 2));
+    
+    const startTime = Date.now();
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'User-Agent': 'PostbackProxy/1.0',
+        'Accept': 'application/json, text/plain, */*'
+      },
+      body: JSON.stringify(data || {}),
+      timeout: 10000 // 10 second timeout
+    });
+    
+    const responseTime = Date.now() - startTime;
+    const text = await response.text();
+    let responseData;
+    try {
+      responseData = JSON.parse(text);
+    } catch {
+      responseData = text;
+    }
+
+    // Save the postback with enhanced metadata
+    const postbacks = await loadPostbacks();
+    postbacks.push({
+      id: require('uuid').v4(),
+      method: 'POST',
+      receivedAt: new Date().toISOString(),
+      url: url,
+      status: response.status,
+      statusText: response.statusText,
+      responseTime: `${responseTime}ms`,
+      headers: Object.fromEntries(response.headers.entries()),
+      requestBody: data || {},
+      responseBody: responseData,
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown'
+    });
+    await savePostbacks(postbacks);
+
+    console.log(`[${new Date().toISOString()}] POST request completed: ${response.status} (${responseTime}ms)`);
+    
+    res.status(response.status).json({
+      success: true,
+      status_code: response.status,
+      status_text: response.statusText,
+      response_text: responseData,
+      response_time: `${responseTime}ms`,
+      headers: Object.fromEntries(response.headers.entries()),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Proxy POST error:`, error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to proxy request',
+      details: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Endpoint to receive postbacks (both GET and POST)
 app.all('/api/receive-postback', async (req, res) => {
   const requestData = {
@@ -1137,6 +1282,60 @@ app.post('/api/check-proxy', async (req, res) => {
       error: e.message,
       country,
       proxy: proxyUrl
+    });
+  }
+});
+
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({
+    status: 'healthy',
+    message: 'Postback backend is running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      'GET /': 'Health check',
+      'GET /proxy-postback': 'Proxy GET requests',
+      'POST /proxy-postback': 'Proxy POST requests',
+      'GET /api/received-postbacks': 'View received postbacks',
+      'POST /api/receive-postback': 'Receive postback',
+      'GET /api/games': 'Get games',
+      'POST /api/games': 'Add game'
+    }
+  });
+});
+
+app.get('/health', (req, res) => {
+  res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Track click endpoint (missing endpoint causing 404)
+app.post('/api/track-click', async (req, res) => {
+  try {
+    console.log(`[${new Date().toISOString()}] Click tracked:`, req.body);
+    
+    // You can add click tracking logic here
+    const clickData = {
+      timestamp: new Date().toISOString(),
+      ip: req.ip || req.connection.remoteAddress,
+      userAgent: req.get('User-Agent') || 'Unknown',
+      ...req.body
+    };
+    
+    // For now, just log the click - you can extend this to save to a file/database
+    console.log('Click data:', JSON.stringify(clickData, null, 2));
+    
+    res.json({ 
+      success: true, 
+      message: 'Click tracked successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Track click error:`, error.message);
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to track click',
+      details: error.message 
     });
   }
 });

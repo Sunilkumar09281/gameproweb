@@ -10,8 +10,8 @@ const handlePostbackSend = async (e) => {
     let response, result;
     
     if (postbackMethod === 'GET') {
-      // Use the new proxy endpoint for GET requests
-      const proxyUrl = `/api/proxy-get?target=${encodeURIComponent(previewUrl)}`;
+      // Use the legacy proxy endpoint for GET requests (backward compatibility)
+      const proxyUrl = `/proxy-postback?target=${encodeURIComponent(previewUrl)}`;
       console.log('Sending GET request to proxy:', proxyUrl);
       
       response = await fetch(proxyUrl, { 
@@ -22,22 +22,12 @@ const handlePostbackSend = async (e) => {
         }
       });
       
-      result = await response.json();
-      
-      // Save the postback to the server's received postbacks
-      await fetch('/api/receive-postback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'GET',
-          url: previewUrl,
-          status: response.status,
-          headers: {},
-          query: Object.fromEntries(new URL(previewUrl).searchParams),
-          body: result,
-          ip: '127.0.0.1' // This would be the client IP in a real scenario
-        })
-      });
+      const text = await response.text();
+      try {
+        result = JSON.parse(text);
+      } catch {
+        result = text;
+      }
       
       setPostbackResponse({
         status: response.status,
@@ -46,11 +36,11 @@ const handlePostbackSend = async (e) => {
       });
       
     } else {
-      // Use the new proxy endpoint for POST requests
+      // Use the legacy proxy endpoint for POST requests
       console.log('Sending POST request to:', postbackUrl);
       console.log('Payload:', postPayload);
       
-      response = await fetch('/api/proxy-post', {
+      response = await fetch('/proxy-postback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,26 +51,11 @@ const handlePostbackSend = async (e) => {
       
       result = await response.json();
       
-      // Save the postback to the server's received postbacks
-      await fetch('/api/receive-postback', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          method: 'POST',
-          url: postbackUrl,
-          status: response.status,
-          headers: { 'Content-Type': 'application/json' },
-          body: postPayload,
-          response: result,
-          ip: '127.0.0.1' // This would be the client IP in a real scenario
-        })
-      });
-      
       setPostbackResponse({
-        status: response.status,
-        status_text: response.statusText,
-        data: result,
-        headers: Object.fromEntries(response.headers.entries())
+        status: result.status_code || response.status,
+        status_text: result.status_text || response.statusText,
+        data: result.response_text || result,
+        headers: result.headers || Object.fromEntries(response.headers.entries())
       });
     }
     
