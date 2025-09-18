@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from "axios";
 import * as XLSX from 'xlsx';
 import PostbackDocumentation from './PostbackDocumentation';
+import { API_ENDPOINTS, apiCall } from '../config/api';
 import Tesseract from 'tesseract.js';
 import {
   ResponsiveContainer,
@@ -155,7 +156,7 @@ const startTimeRef = useRef(new Date().toISOString());
 
 useEffect(() => {
   // send session_start
-  fetch("http://localhost:5000/api/track-click", {
+  fetch(API_ENDPOINTS.TRACK_CLICK, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -177,10 +178,10 @@ useEffect(() => {
     // try navigator.sendBeacon first (good for unload)
     if (navigator.sendBeacon) {
       const blob = new Blob([payload], { type: "application/json" });
-      navigator.sendBeacon("http://localhost:5000/api/track-click", blob);
+      navigator.sendBeacon(API_ENDPOINTS.TRACK_CLICK, blob);
     } else {
       // fallback
-      fetch("http://localhost:5000/api/track-click", {
+      fetch(API_ENDPOINTS.TRACK_CLICK, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: payload,
@@ -239,7 +240,7 @@ useEffect(() => {
       try {
         // response = await fetch(sendUrl, { method: 'GET' });
         console.log(`Sending postback to: ${sendUrl}`);
-        response = await fetch(`http://localhost:5000/proxy-postback?target=${encodeURIComponent(sendUrl)}`, { method: 'GET' });
+        response = await fetch(`${API_ENDPOINTS.PROXY_POSTBACK}?target=${encodeURIComponent(sendUrl)}`, { method: 'GET' });
         text = await response.text();
 
         try { data = JSON.parse(text); } catch { data = text; }
@@ -321,7 +322,7 @@ useEffect(() => {
     setLoadingPostbacks(true);
     setErrorPostbacks(null);
     try {
-      const res = await fetch('http://localhost:5000/api/received-postbacks');
+      const res = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS);
       if (!res.ok) {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
@@ -399,7 +400,7 @@ useEffect(() => {
   // Fetch games from backend
   const fetchGames = async () => {
     try {
-      const res = await fetch('http://localhost:5000/api/games');
+      const res = await fetch(API_ENDPOINTS.GAMES);
       const data = await res.json();
       setGames(data);
     } catch (err) {
@@ -518,10 +519,10 @@ useEffect(() => {
       
       if (postbackMethod === 'GET') {
         // Use the legacy proxy endpoint for GET requests (backward compatibility)
-        const proxyUrl = `http://localhost:5000/proxy-postback?target=${encodeURIComponent(previewUrl)}`;
+        const proxyUrl = `${API_ENDPOINTS.PROXY_POSTBACK}?target=${encodeURIComponent(previewUrl)}`;
         console.log('Sending GET request to proxy:', proxyUrl);
         
-        response = await fetch(proxyUrl, { 
+        response = await fetch(`${API_ENDPOINTS.PROXY_POSTBACK}?target=${encodeURIComponent(previewUrl)}`, { 
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -548,7 +549,7 @@ useEffect(() => {
         console.log('Sending POST request to:', postbackUrl);
         console.log('Payload:', postPayload);
         
-        response = await fetch('http://localhost:5000/proxy-postback', {
+        response = await fetch(API_ENDPOINTS.PROXY_POSTBACK, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -631,7 +632,7 @@ useEffect(() => {
     setGameFormError('');
     setGameFormLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/games', {
+      const res = await fetch(API_ENDPOINTS.GAMES, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(gameForm),
@@ -650,13 +651,13 @@ useEffect(() => {
   };
   // Delete game
   const handleDeleteGame = async (id) => {
-    await fetch(`http://localhost:5000/api/games/${id}`, { method: 'DELETE' });
+    await fetch(`${API_ENDPOINTS.GAMES}/${id}`, { method: 'DELETE' });
     fetchGames();
   };
   const fetchSessionsSummary = async () => {
   try {
     // fetch last 1000 events
-    const res = await fetch("http://localhost:5000/api/clicks?limit=1000");
+    const res = await fetch(`${API_ENDPOINTS.CLICKS}?limit=1000`);
     const events = await res.json();
 
     // group by sessionId
@@ -1156,7 +1157,7 @@ setSessions(arr);
                   margin: '0 4px',
                   fontFamily: 'monospace'
                 }}>
-                  http://localhost:5000/api/receive-postback
+                  {API_ENDPOINTS.RECEIVE_POSTBACK}
                 </code>
                 Use the filters below to search through received postbacks.
               </p>
@@ -1559,7 +1560,7 @@ setSessions(arr);
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/games</b><br />
                   <span style={{ color: '#888' }}>Returns all games.</span>
-                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/games', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('${API_ENDPOINTS.PUBLIC_GAMES}', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
@@ -1581,7 +1582,7 @@ setSessions(arr);
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/postbacks</b><br />
                   <span style={{ color: '#888' }}>Returns all received postbacks.</span>
-                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/postbacks', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('${API_ENDPOINTS.PUBLIC_POSTBACKS}', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
@@ -1600,7 +1601,7 @@ setSessions(arr);
                 <li style={{ marginBottom: 12 }}>
                   <b>GET /api/public/users</b><br />
                   <span style={{ color: '#888' }}>Returns a list of user stats (placeholder data).</span>
-                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('http://localhost:5000/api/public/users', {
+                  <pre style={{ background: '#000000', padding: 8, borderRadius: 4, margin: '8px 0' }}>{`fetch('${API_ENDPOINTS.PUBLIC_USERS}', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
@@ -2051,7 +2052,7 @@ function ApiKeysSection() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/apikeys');
+      const res = await fetch(API_ENDPOINTS.API_KEYS);
       const data = await res.json();
       setKeys(data);
     } catch (err) {
@@ -2069,7 +2070,7 @@ function ApiKeysSection() {
     setCreating(true);
     setError('');
     try {
-      const res = await fetch('http://localhost:5000/api/apikeys', {
+      const res = await fetch(API_ENDPOINTS.API_KEYS, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: newKeyName }),
@@ -2096,7 +2097,7 @@ function ApiKeysSection() {
     setSavingEdit(true);
     setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/apikeys/${key}`, {
+      const res = await fetch(`${API_ENDPOINTS.API_KEYS}/${key}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: editingName }),
@@ -2124,7 +2125,7 @@ function ApiKeysSection() {
     setRevoking(key);
     setError('');
     try {
-      const res = await fetch(`http://localhost:5000/api/apikeys/${key}`, { method: 'DELETE' });
+      const res = await fetch(`${API_ENDPOINTS.API_KEYS}/${key}`, { method: 'DELETE' });
       if (!res.ok) {
         const err = await res.json();
         setError(err.error || 'Failed to revoke API key');
@@ -2242,7 +2243,7 @@ function ApiKeysSection() {
       <div style={{ marginTop: 32, background: '#1a0d0dff', padding: 16, borderRadius: 6 }}>
         <strong>How to use your API key:</strong>
         <div style={{ margin: '10px 0' }}>Include your API key in the <code>x-api-key</code> header when making requests to the public API endpoint:</div>
-        <pre style={{ background: '#222', color: '#000000', padding: 12, borderRadius: 6 }}>{`fetch('http://localhost:5000/api/public/games', {
+        <pre style={{ background: '#222', color: '#000000', padding: 12, borderRadius: 6 }}>{`fetch('${API_ENDPOINTS.PUBLIC_GAMES}', {
   headers: { 'x-api-key': 'YOUR_API_KEY' }
 })
   .then(res => res.json())
@@ -3072,7 +3073,7 @@ function ApiFetcherSection() {
                       return (
                         <td key={col.key} className="table-cell">
                           <a
-                            href={`http://localhost:5000/go/${id}`}
+                            href={`${API_ENDPOINTS.GO}/${id}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="preview-link"
@@ -4053,7 +4054,7 @@ function ResponsesSection() {
       setLoading(true);
       setError('');
       try {
-        const res = await fetch('http://localhost:5000/api/play-responses');
+        const res = await fetch(API_ENDPOINTS.PLAY_RESPONSES);
         if (!res.ok) throw new Error('Failed to fetch');
         const data = await res.json();
         setResponses(data.reverse()); // newest first
@@ -4225,7 +4226,7 @@ const [checking, setChecking] = useState({});
 const [proxyResults, setProxyResults] = useState({});
 
   useEffect(() => {
-    axios.get("http://localhost:5000/api/fetch-history")
+    axios.get(API_ENDPOINTS.FETCH_HISTORY)
       .then(res => {
         const allOffers = flattenOffers(res.data);
         // Only keep offers with numeric id and deduplicate by id
@@ -4250,7 +4251,7 @@ const [proxyResults, setProxyResults] = useState({});
   let results = {};
   for (const country of COUNTRY_LIST) {
     try {
-      const res = await fetch("http://localhost:5000/api/check-proxy", {
+      const res = await fetch(API_ENDPOINTS.CHECK_PROXY, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ country, url: previewUrl })
@@ -4281,7 +4282,7 @@ const [proxyResults, setProxyResults] = useState({});
       selectedOffers.includes(offer.id || offer.offer_id || offer._id)
     );
     for (const offer of selected) {
-      await fetch('http://localhost:5000/api/games', {
+      await fetch(API_ENDPOINTS.GAMES, {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
@@ -4389,7 +4390,7 @@ const [proxyResults, setProxyResults] = useState({});
                 <td>{offer.expiration_date ? new Date(offer.expiration_date).toLocaleDateString() : "-"}</td>
                 <td>
                   <a
-                    href={`http://localhost:5000/go/${offer.id || offer.offer_id || offer._id}`}
+                    href={`${API_ENDPOINTS.GO}/${offer.id || offer.offer_id || offer._id}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary"
@@ -4464,7 +4465,7 @@ const [proxyResults, setProxyResults] = useState({});
             title: offer.title || offer.name || offer.id,
             image: offer.image,
             description: offer.description || '',
-            link: `http://localhost:5000/go/${offer.id || offer.offer_id || offer._id}`,
+            link: `${API_ENDPOINTS.GO}/${offer.id || offer.offer_id || offer._id}`,
             preview_url: offer.preview_url || offer.link,
             genre: offer.genre || '',
             rating: offer.rating || '',
@@ -5154,7 +5155,7 @@ function EmailConfigSection() {
         const offersText = selectedOffers.map(offer => {
             const id = offer.id || offer.offer_id || offer._id;
             const title = offer.title || offer.name || `Offer #${id}`;
-            const link = `http://localhost:5000/go/${id}`;
+            const link = `${API_ENDPOINTS.GO}/${id}`;
             return `Title: ${title}\nLink: ${link}`;
         }).join('\n\n---\n\n');
 
@@ -6817,9 +6818,9 @@ function DomainCheckerSection() {
     setLoading(true);
     setResults({});
     const checks = await Promise.all(selectedIds.map(async id => {
-      const url = `http://localhost:5000/go/${id}`;
+      const url = `${API_ENDPOINTS.GO}/${id}`;
       try {
-        const res = await fetch('http://localhost:5000/api/check-domain', {
+        const res = await fetch(API_ENDPOINTS.CHECK_DOMAIN, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ url })
@@ -9524,7 +9525,7 @@ function BulkSchedulingSection() {
                   </td>
                   <td>
                     {/* Changed: Link in Offers Table to masked URL */}
-                    <a href={`http://localhost:5000/go/${id}`} target="_blank" rel="noopener noreferrer" className="offer-link">
+                    <a href={`${API_ENDPOINTS.GO}/${id}`} target="_blank" rel="noopener noreferrer" className="offer-link">
                       {`localhost:5000/go/${id}`} {/* Display the masked URL */}
                     </a>
                   </td>
@@ -9604,7 +9605,7 @@ function BulkSchedulingSection() {
                             />
                           ) : (
                             // Changed: Link in Modal Table to masked URL
-                            <a href={`http://localhost:5000/go/${s.offerId}`} target="_blank" rel="noopener noreferrer" className="modal-table-link">
+                            <a href={`${API_ENDPOINTS.GO}/${s.offerId}`} target="_blank" rel="noopener noreferrer" className="modal-table-link">
                               {`localhost:5000/go/${s.offerId}`} {/* Display the masked URL */}
                             </a>
                           )}

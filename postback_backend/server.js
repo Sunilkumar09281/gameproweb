@@ -192,15 +192,62 @@ const publicApiLimiter = rateLimit({
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
 
-
 const cheerio = require('cheerio');
 const bodyParser = require('body-parser');
 const { or } = require('firebase/firestore');
-// Middleware
-app.use(cors({
-  origin: 'http://localhost:3000', // React dev server URL
-  credentials: true
-}));
+
+// CORS configuration for both development and production
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'https://localhost:3000',
+      'https://localhost:3001',
+      // Add your Render frontend URL here
+      'https://gamepro.onrender.com',
+      'https://gameproweb.onrender.com',
+      // Add any other domains you might use
+      /\.onrender\.com$/,
+      /\.netlify\.app$/,
+      /\.vercel\.app$/,
+      /\.herokuapp\.com$/
+    ];
+    
+    // Check if origin is in allowed list or matches regex patterns
+    const isAllowed = allowedOrigins.some(allowedOrigin => {
+      if (typeof allowedOrigin === 'string') {
+        return origin === allowedOrigin;
+      } else if (allowedOrigin instanceof RegExp) {
+        return allowedOrigin.test(origin);
+      }
+      return false;
+    });
+    
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      console.log(`CORS blocked origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: [
+    'Origin',
+    'X-Requested-With',
+    'Content-Type',
+    'Accept',
+    'Authorization',
+    'Cache-Control',
+    'X-API-Key'
+  ]
+};
+
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
