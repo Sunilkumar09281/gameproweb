@@ -1,184 +1,169 @@
 const express = require('express');
 const cors = require('cors');
-const fs = require('fs-extra');
-const path = require('path');
+const bodyParser = require('body-parser');
+const fetch = require('node-fetch');
+const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
-const axios = require('axios'); // Add at the top if not already
-const nodemailer = require('nodemailer');
-const fetch = require('node-fetch'); // If not already installed: npm install node-fetch
-const { v4: uuidv4 } = require('uuid'); // npm install uuid
-
-// Import the proxy router
 const proxyRouter = require('./proxy');
+const fs = require('fs').promises;
+const path = require('path');
 
 const app = express();
-const PORT = 5000;
-const DATA_FILE = path.join(__dirname, 'postbacks.json');
-const GAMES_FILE = path.join(__dirname, 'games.json');
+const PORT = process.env.PORT || 5000;
+
+// File paths
+const postbacksFile = path.join(__dirname, 'postbacks.json');
+const gamesFile = path.join(__dirname, 'games.json');
+const partnersFile = path.join(__dirname, 'partners.json');
 const API_KEYS_FILE = path.join(__dirname, 'api_keys.json');
 const PLAY_RESPONSES_FILE = path.join(__dirname, 'play_responses.json');
 const FETCH_HISTORY_FILE = path.join(__dirname, 'fetch_history.json');
 const EMAIL_CONFIG_FILE = path.join(__dirname, 'email_config.json');
 const SCHEDULES_FILE = path.join(__dirname, 'offer_schedules.json');
-const SCHEDULED_EMAILS_FILE = path.join(__dirname, 'scheduled_emails.json');
-const CAMPAIGNS_FILE = path.join(__dirname, 'campaigns.json');
 
-// Helper: Load campaigns
-async function loadCampaigns() {
+// Load/save postbacks
+async function loadPostbacks() {
   try {
-    const exists = await fs.pathExists(CAMPAIGNS_FILE);
-    if (!exists) return [];
-    return await fs.readJson(CAMPAIGNS_FILE);
-  } catch {
+    const data = await fs.readFile(postbacksFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
 }
 
-// Helper: Save campaigns
-async function saveCampaigns(campaigns) {
-  await fs.writeJson(CAMPAIGNS_FILE, campaigns, { spaces: 2 });
+async function savePostbacks(postbacks) {
+  await fs.writeFile(postbacksFile, JSON.stringify(postbacks, null, 2));
 }
 
-// Helper: Load play responses
-const loadPlayResponses = async () => {
+// Load/save partners
+async function loadPartners() {
   try {
-    const exists = await fs.pathExists(PLAY_RESPONSES_FILE);
-    if (!exists) return [];
-    return await fs.readJson(PLAY_RESPONSES_FILE);
-  } catch {
+    const data = await fs.readFile(partnersFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
-};
-// Helper: Save play responses
-const savePlayResponses = async (responses) => {
-  await fs.writeJson(PLAY_RESPONSES_FILE, responses, { spaces: 2 });
-};
+}
 
-// Helper: Load postbacks from file
-const loadPostbacks = async () => {
+async function savePartners(partners) {
+  await fs.writeFile(partnersFile, JSON.stringify(partners, null, 2));
+}
+
+// Load/save games
+async function loadGames() {
   try {
-    const exists = await fs.pathExists(DATA_FILE);
-    if (!exists) return [];
-    return await fs.readJson(DATA_FILE);
-  } catch {
+    const data = await fs.readFile(gamesFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
-};
+}
 
-// Helper: Save postbacks to file
-const savePostbacks = async (postbacks) => {
-  await fs.writeJson(DATA_FILE, postbacks, { spaces: 2 });
-};
+async function saveGames(games) {
+  await fs.writeFile(gamesFile, JSON.stringify(games, null, 2));
+}
 
-// Helper: Load games from file
-const loadGames = async () => {
+// Load/save API keys
+async function loadApiKeys() {
   try {
-    const exists = await fs.pathExists(GAMES_FILE);
-    if (!exists) return [];
-    return await fs.readJson(GAMES_FILE);
-  } catch {
+    const data = await fs.readFile(API_KEYS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
-};
-// Helper: Save games to file
-const saveGames = async (games) => {
-  await fs.writeJson(GAMES_FILE, games, { spaces: 2 });
-};
+}
 
-// Helper: Load API keys from file
-const loadApiKeys = async () => {
+async function saveApiKeys(keys) {
+  await fs.writeFile(API_KEYS_FILE, JSON.stringify(keys, null, 2));
+}
+
+// Load/save play responses
+async function loadPlayResponses() {
   try {
-    const exists = await fs.pathExists(API_KEYS_FILE);
-    if (!exists) return [];
-    return await fs.readJson(API_KEYS_FILE);
-  } catch {
+    const data = await fs.readFile(PLAY_RESPONSES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
-};
-// Helper: Save API keys to file
-const saveApiKeys = async (keys) => {
-  await fs.writeJson(API_KEYS_FILE, keys, { spaces: 2 });
-};
-// Helper: Generate random API key
-const generateApiKey = () => {
-  return (
-    Math.random().toString(36).substring(2, 10) +
-    Math.random().toString(36).substring(2, 10)
-  );
-};
+}
 
-// Helper: Load fetch history
-const loadFetchHistory = async () => {
+async function savePlayResponses(responses) {
+  await fs.writeFile(PLAY_RESPONSES_FILE, JSON.stringify(responses, null, 2));
+}
+
+// Load/save fetch history
+async function loadFetchHistory() {
   try {
-    const exists = await fs.pathExists(FETCH_HISTORY_FILE);
-    if (!exists) return [];
-    return await fs.readJson(FETCH_HISTORY_FILE);
-  } catch {
+    const data = await fs.readFile(FETCH_HISTORY_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
     return [];
   }
-};
-// Helper: Save fetch history
-const saveFetchHistory = async (history) => {
-  await fs.writeJson(FETCH_HISTORY_FILE, history, { spaces: 2 });
-};
+}
 
-// Load email config from file if exists
+async function saveFetchHistory(history) {
+  await fs.writeFile(FETCH_HISTORY_FILE, JSON.stringify(history, null, 2));
+}
+
+// Load/save email config
 async function loadEmailConfig() {
   try {
-    const exists = await fs.pathExists(EMAIL_CONFIG_FILE);
-    if (!exists) return {
-      host: '', port: 465, secure: true, user: '', pass: '', from: ''
+    const data = await fs.readFile(EMAIL_CONFIG_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return {
+      host: '',
+      port: 465,
+      secure: true,
+      user: '',
+      pass: '',
+      from: ''
     };
-    return await fs.readJson(EMAIL_CONFIG_FILE);
-  } catch {
-    return { host: '', port: 465, secure: true, user: '', pass: '', from: '' };
   }
 }
-// Save email config to file
+
 async function saveEmailConfig(config) {
-  await fs.writeJson(EMAIL_CONFIG_FILE, config, { spaces: 2 });
+  await fs.writeFile(EMAIL_CONFIG_FILE, JSON.stringify(config, null, 2));
 }
 
+// Load/save schedules
+async function loadSchedules() {
+  try {
+    const data = await fs.readFile(SCHEDULES_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveSchedules(schedules) {
+  await fs.writeFile(SCHEDULES_FILE, JSON.stringify(schedules, null, 2));
+}
+
+// Load email config from file if exists
 let emailConfig;
 try {
   if (fs.existsSync(EMAIL_CONFIG_FILE)) {
-    emailConfig = fs.readJsonSync(EMAIL_CONFIG_FILE);
+    emailConfig = fs.readFile(EMAIL_CONFIG_FILE, 'utf8');
   } else {
-    emailConfig = { host: '', port: 465, secure: true, user: '', pass: '', from: '' };
+    emailConfig = {
+      host: '',
+      port: 465,
+      secure: true,
+      user: '',
+      pass: '',
+      from: ''
+    };
   }
 } catch {
-  emailConfig = { host: '', port: 465, secure: true, user: '', pass: '', from: '' };
-}
-
-// Helper: Load schedules
-async function loadSchedules() {
-  try {
-    const exists = await fs.pathExists(SCHEDULES_FILE);
-    if (!exists) return [];
-    return await fs.readJson(SCHEDULES_FILE);
-  } catch {
-    return [];
-  }
-}
-// Helper: Save schedules
-async function saveSchedules(schedules) {
-  await fs.writeJson(SCHEDULES_FILE, schedules, { spaces: 2 });
-}
-
-// Helper: Load scheduled emails
-async function loadScheduledEmails() {
-  try {
-    const exists = await fs.pathExists(SCHEDULED_EMAILS_FILE);
-    if (!exists) return [];
-    return await fs.readJson(SCHEDULED_EMAILS_FILE);
-  } catch {
-    return [];
-  }
-}
-
-// Helper: Save scheduled emails
-async function saveScheduledEmails(emails) {
-  await fs.writeJson(SCHEDULED_EMAILS_FILE, emails, { spaces: 2 });
+  emailConfig = {
+    host: '',
+    port: 465,
+    secure: true,
+    user: '',
+    pass: '',
+    from: ''
+  };
 }
 
 // Rate limiter: 10 requests per IP per day for public API
@@ -193,8 +178,6 @@ const publicApiLimiter = rateLimit({
 });
 
 const cheerio = require('cheerio');
-const bodyParser = require('body-parser');
-const { or } = require('firebase/firestore');
 
 // CORS configuration for both development and production
 const corsOptions = {
@@ -401,11 +384,23 @@ app.post('/proxy-postback', async (req, res) => {
   }
 });
 
-// Endpoint to receive postbacks (both GET and POST)
+// Endpoint to receive postbacks (both GET and POST) with partner tracking
 app.all('/api/receive-postback', async (req, res) => {
+  const partnerId = req.query.partner_id || req.body?.partner_id || 'unknown';
+  
+  // Find partner info if partner_id is provided
+  let partnerInfo = null;
+  if (partnerId !== 'unknown') {
+    const partners = await loadPartners();
+    partnerInfo = partners.find(p => p.id === partnerId);
+  }
+  
   const requestData = {
+    id: uuidv4(), // Unique ID for this postback
     method: req.method,
     receivedAt: new Date().toISOString(),
+    partnerId: partnerId,
+    partnerName: partnerInfo?.name || 'Unknown Partner',
     query: req.query,  // Always include query parameters
     headers: req.headers,
     ip: req.ip,
@@ -424,11 +419,25 @@ app.all('/api/receive-postback', async (req, res) => {
   postbacks.push(requestData);
   await savePostbacks(postbacks);
   
+  // Update partner stats if partner exists
+  if (partnerInfo) {
+    const partners = await loadPartners();
+    const partnerIndex = partners.findIndex(p => p.id === partnerId);
+    if (partnerIndex !== -1) {
+      partners[partnerIndex].totalPostbacks = (partners[partnerIndex].totalPostbacks || 0) + 1;
+      partners[partnerIndex].lastPostbackAt = new Date().toISOString();
+      await savePartners(partners);
+    }
+  }
+  
   // Return a simple response
   res.status(200).json({ 
     success: true, 
     message: 'Postback received', 
     method: req.method,
+    partnerId: partnerId,
+    partnerName: requestData.partnerName,
+    postbackId: requestData.id,
     data: requestData 
   });
 });
@@ -445,11 +454,117 @@ app.delete('/api/received-postbacks', async (req, res) => {
   res.json({ message: 'All postbacks cleared' });
 });
 
+// Partner Management Endpoints
+
+// Get all partners
+app.get('/api/partners', async (req, res) => {
+  const partners = await loadPartners();
+  res.json(partners);
+});
+
+// Create a new partner
+app.post('/api/partners', async (req, res) => {
+  const { name, description } = req.body;
+  
+  if (!name) {
+    return res.status(400).json({ error: 'Partner name is required' });
+  }
+  
+  const partnerId = uuidv4();
+  const newPartner = {
+    id: partnerId,
+    name: name.trim(),
+    description: description?.trim() || '',
+    createdAt: new Date().toISOString(),
+    totalPostbacks: 0,
+    lastPostbackAt: null,
+    postbackUrl: `${req.protocol}://${req.get('host')}/api/receive-postback?partner_id=${partnerId}`,
+    status: 'active'
+  };
+  
+  const partners = await loadPartners();
+  partners.push(newPartner);
+  await savePartners(partners);
+  
+  res.status(201).json({
+    success: true,
+    message: 'Partner created successfully',
+    partner: newPartner
+  });
+});
+
+// Update a partner
+app.put('/api/partners/:id', async (req, res) => {
+  const { id } = req.params;
+  const { name, description, status } = req.body;
+  
+  const partners = await loadPartners();
+  const partnerIndex = partners.findIndex(p => p.id === id);
+  
+  if (partnerIndex === -1) {
+    return res.status(404).json({ error: 'Partner not found' });
+  }
+  
+  if (name) partners[partnerIndex].name = name.trim();
+  if (description !== undefined) partners[partnerIndex].description = description.trim();
+  if (status) partners[partnerIndex].status = status;
+  
+  partners[partnerIndex].updatedAt = new Date().toISOString();
+  
+  await savePartners(partners);
+  
+  res.json({
+    success: true,
+    message: 'Partner updated successfully',
+    partner: partners[partnerIndex]
+  });
+});
+
+// Delete a partner
+app.delete('/api/partners/:id', async (req, res) => {
+  const { id } = req.params;
+  
+  const partners = await loadPartners();
+  const partnerIndex = partners.findIndex(p => p.id === id);
+  
+  if (partnerIndex === -1) {
+    return res.status(404).json({ error: 'Partner not found' });
+  }
+  
+  const deletedPartner = partners.splice(partnerIndex, 1)[0];
+  await savePartners(partners);
+  
+  res.json({
+    success: true,
+    message: 'Partner deleted successfully',
+    partner: deletedPartner
+  });
+});
+
+// Get postbacks for a specific partner
+app.get('/api/partners/:id/postbacks', async (req, res) => {
+  const { id } = req.params;
+  const { limit = 100, offset = 0 } = req.query;
+  
+  const postbacks = await loadPostbacks();
+  const partnerPostbacks = postbacks
+    .filter(p => p.partnerId === id)
+    .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
+    .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+  
+  res.json({
+    partnerId: id,
+    total: postbacks.filter(p => p.partnerId === id).length,
+    postbacks: partnerPostbacks
+  });
+});
+
 // Get all games
 app.get('/api/games', async (req, res) => {
   const games = await loadGames();
   res.json(games);
 });
+
 // Add a new game
 app.post('/api/games', async (req, res) => {
   const { title, genre, rating, image, link } = req.body;
@@ -457,16 +572,17 @@ app.post('/api/games', async (req, res) => {
     return res.status(400).json({ error: 'All fields are required.' });
   }
   const games = await loadGames();
- const newGame = {
-  ...req.body, // ✅ keep all fields sent from dashboard
-  id: req.body.id || Date.now().toString(),
-  createdAt: new Date().toISOString()
-};
+  const newGame = {
+    ...req.body, // keep all fields sent from dashboard
+    id: req.body.id || Date.now().toString(),
+    createdAt: new Date().toISOString()
+  };
 
   games.push(newGame);
   await saveGames(games);
   res.status(201).json(newGame);
 });
+
 // Delete a game by id
 app.delete('/api/games/:id', async (req, res) => {
   const { id } = req.params;
@@ -485,7 +601,7 @@ app.post('/api/apikeys', async (req, res) => {
   const { name } = req.body;
   const keys = await loadApiKeys();
   const newKey = {
-    key: generateApiKey(),
+    key: require('uuid').v4(),
     name: name || '',
     createdAt: new Date().toISOString(),
     usage: {}
@@ -652,7 +768,7 @@ app.post('/api/schedules', async (req, res) => {
   }
   const schedules = await loadSchedules();
   const newSchedules = offerIds.map(offerId => ({
-    id: uuidv4(),
+    id: require('uuid').v4(),
     offerId,
     url,
     startDate,
@@ -685,7 +801,6 @@ app.patch('/api/schedules/:scheduleId', async (req, res) => {
   await saveSchedules(schedules);
   res.json({ message: 'Schedule updated.', schedule: schedules[idx] });
 });
-
 
 // Check if a schedule is active
 function isScheduleActive(schedule) {
@@ -763,8 +878,9 @@ app.get('/go/:id', async (req, res) => {
 
   // 2. Search fetch_history.json for any response with a matching id and preview_url/link
   try {
-    const fetchHistory = await fs.pathExists(FETCH_HISTORY_FILE) ? await fs.readJson(FETCH_HISTORY_FILE) : [];
-    for (const entry of fetchHistory) {
+    const fetchHistory = await fs.promises.readFile(FETCH_HISTORY_FILE, 'utf8');
+    const history = JSON.parse(fetchHistory);
+    for (const entry of history) {
       const url = findPreviewUrl(entry.response, id);
       if (url) {
         console.log('Redirecting to found preview_url/link:', url);
@@ -777,55 +893,7 @@ app.get('/go/:id', async (req, res) => {
   res.status(404).send('Not found');
 });
 
-// // Backend: Add `/api/play-response` Endpoint
-// app.post('/api/play-response', async (req, res) => {
-//   const { gameId, utm_source, utm_medium, utm_campaign, utm_term, utm_content, userAgent, referrer, extra } = req.body;
-//   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
-
-//   // Fetch geolocation info
-//   let geo = {};
-//   try {
-//     const geoRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,regionName,city,query,lat,lon`);
-//     if (geoRes.data.status === 'success') {
-//       geo = {
-//         country: geoRes.data.country,
-//         region: geoRes.data.regionName,
-//         city: geoRes.data.city,
-//         lat: geoRes.data.lat,
-//         lon: geoRes.data.lon,
-//         ip: geoRes.data.query
-//       };
-//     }
-//   } catch (e) {
-//     geo = {};
-//   }
-
-//   const data = {
-//     timestamp: new Date().toISOString(),
-//     ip,
-//     gameId,
-//     utm_source,
-//     utm_medium,
-//     utm_campaign,
-//     utm_term,
-//     utm_content,
-//     userAgent,
-//     referrer,
-//     extra,
-//     geo
-//   };
-//   const responses = await loadPlayResponses();
-//   responses.push(data);
-//   await savePlayResponses(responses);
-//   res.status(200).json({ message: 'Play response recorded', data });
-// });
-
 // Endpoint to get all play responses
-// app.get('/api/play-responses', async (req, res) => {
-//   const responses = await loadPlayResponses();
-//   res.json(responses);
-// });
-
 app.get('/api/play-responses', async (req, res) => {
   const responses = await loadPlayResponses();
   const games = await loadGames();
@@ -842,8 +910,6 @@ app.get('/api/play-responses', async (req, res) => {
   res.json(enriched);
 });
 
-
-// Update a game by id
 // Update a game by id
 app.put('/api/games/:id', async (req, res) => {
   const { id } = req.params;
@@ -856,9 +922,6 @@ app.put('/api/games/:id', async (req, res) => {
   await saveGames(games);
   res.json(games[idx]);
 });
-
-
-
 
 // Get all games (offers)
 app.get('/api/games', async (req, res) => {
@@ -876,75 +939,6 @@ app.post('/api/fetch-history', async (req, res) => {
   await saveFetchHistory(history);
   res.status(201).json({ message: 'Fetch history recorded' });
 });
-
-// app.post('/api/play-response', async (req, res) => {
-//   const {
-//     gameId,
-//     utm_source,
-//     utm_medium,
-//     utm_campaign,
-//     utm_term,
-//     utm_content,
-//     userAgent,
-//     referrer,
-//     extra,
-//     geo: clientGeo // Accept geo from client if provided
-//   } = req.body;
-
-//   if (!gameId) {
-//     return res.status(400).json({ error: 'gameId is required.' });
-//   }
-
-//   const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
-
-//   // Prefer client geo, else fetch from server
-//   let geo = clientGeo || {};
-//   if (!geo || !geo.country) {
-//     try {
-//       const geoRes = await axios.get(`http://ip-api.com/json/${ip}?fields=status,country,regionName,city,query,lat,lon`);
-//       if (geoRes.data.status === 'success') {
-//         geo = {
-//           country: geoRes.data.country,
-//           region: geoRes.data.regionName,
-//           city: geoRes.data.city,
-//           lat: geoRes.data.lat,
-//           lon: geoRes.data.lon,
-//           ip: geoRes.data.query
-//         };
-//       }
-//     } catch (e) {
-//       console.error('Geo lookup failed:', e.message);
-//       geo = {};
-//     }
-//   }
-
-//   const data = {
-//     timestamp: new Date().toISOString(),
-//     ip,
-//     gameId,
-//     utm_source,
-//     utm_medium,
-//     utm_campaign,
-//     utm_term,
-//     utm_content,
-//     userAgent,
-//     referrer,
-//     extra,
-//     geo
-//   };
-
-//   try {
-//     const responses = await loadPlayResponses();
-//     responses.push(data);
-//     await savePlayResponses(responses);
-//     res.status(201).json({ message: 'Play response recorded', data });
-//   } catch (e) {
-//     console.error('Failed to save play response:', e.message);
-//     res.status(500).json({ error: 'Failed to save play response.' });
-//   }
-// });
-
-
 
 app.post('/api/play-response', async (req, res) => {
   console.log("hii")
@@ -1104,7 +1098,7 @@ app.post('/api/check-domain', async (req, res) => {
   }
 });
 
-const gamesFile = path.join(__dirname, '../games.json');
+// gamesFile already declared above
 
 // filepath: backend/server.js (or your backend entry)
 app.post('/api/games/bulk',async (req, res) => {
@@ -1130,74 +1124,8 @@ app.post('/api/games/bulk',async (req, res) => {
     res.status(500).json({ error: 'Failed to add offers', details: e.message });
   }
 });
-  
 
-
-
-
-// filepath: backend/routes/games.js
-const router = express.Router();
-
-
-
-router.post('/bulk', (req, res) => {
-  const { offers } = req.body;
-  if (!Array.isArray(offers)) return res.status(400).json({ error: 'Offers must be an array' });
-
-  fs.readFile(gamesFile, 'utf8', (err, data) => {
-    if (err) return res.status(500).json({ error: 'Failed to read games.json' });
-    let games = [];
-    try { games = JSON.parse(data); } catch { games = []; }
-    // Optionally deduplicate by id
-    const newGames = [...games, ...offers];
-    fs.writeFile(gamesFile, JSON.stringify(newGames, null, 2), err2 => {
-      if (err2) return res.status(500).json({ error: 'Failed to write games.json' });
-      res.json({ success: true, added: offers.length });
-    });
-  });
-});
-
-module.exports = router;
-
-
-// Endpoint to get all schedules
-const schedulesFile = path.join(__dirname, '../schedules.json');
-
-// Helper functions
-async function loadSchedules() {
-  try {
-    const data = await fs.promises.readFile(schedulesFile, 'utf8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-async function saveSchedules(schedules) {
-  await fs.promises.writeFile(schedulesFile, JSON.stringify(schedules, null, 2));
-}
-
-// POST /api/offer-schedules (for OfferSchedularSection)
-app.post('/api/offer-schedules', async (req, res) => {
-  const { offerIds, externalLinks, schedules } = req.body;
-  if (!Array.isArray(offerIds) || !Array.isArray(externalLinks) || !Array.isArray(schedules)) {
-    return res.status(400).json({ error: 'Invalid payload.' });
-  }
-  let allSchedules = await loadSchedules();
-  offerIds.forEach(offerId => {
-    externalLinks.forEach(url => {
-      schedules.forEach(sch => {
-        allSchedules.push({
-          id: Date.now().toString() + Math.random().toString(36).slice(2),
-          offerId,
-          url,
-          ...sch
-        });
-      });
-    });
-  });
-  await saveSchedules(allSchedules);
-  res.json({ success: true });
-});
+// Removed orphaned code that was causing syntax errors
 
 // POST /api/schedules (for BulkSchedulingSection)
 app.post('/api/schedules', async (req, res) => {

@@ -18,9 +18,8 @@ const getBackendUrl = () => {
   // Production environments - try to guess backend URL
   if (currentHost.includes('onrender.com')) {
     // If frontend is on Render, backend is likely on Render too
-    // Replace 'gameproweb' with 'gamepro' or adjust based on your naming
-    const backendHost = currentHost.replace('gameproweb', 'gamepro');
-    return `${currentProtocol}//${backendHost}`;
+    // Based on your Render service, the backend should be at gamepro service
+    return 'https://gamepro-latest.onrender.com'; // Update this with your actual backend URL
   }
   
   if (currentHost.includes('netlify.app')) {
@@ -41,6 +40,9 @@ export const API_BASE_URL = getBackendUrl();
 
 // API endpoints
 export const API_ENDPOINTS = {
+  // Base URL for manual construction
+  API_BASE_URL: API_BASE_URL,
+  
   // Postback endpoints
   PROXY_POSTBACK: `${API_BASE_URL}/proxy-postback`,
   RECEIVED_POSTBACKS: `${API_BASE_URL}/api/received-postbacks`,
@@ -59,6 +61,22 @@ export const API_ENDPOINTS = {
   FETCH_HISTORY: `${API_BASE_URL}/api/fetch-history`,
   CHECK_PROXY: `${API_BASE_URL}/api/check-proxy`,
   CHECK_DOMAIN: `${API_BASE_URL}/api/check-domain`,
+  
+  // Email endpoints
+  EMAIL_CONFIG: `${API_BASE_URL}/api/email-config`,
+  SEND_EMAIL: `${API_BASE_URL}/api/send-email`,
+  SCHEDULED_EMAILS: `${API_BASE_URL}/api/scheduled-emails`,
+  
+  // Schedule endpoints
+  SCHEDULES: `${API_BASE_URL}/api/schedules`,
+  OFFER_SCHEDULES: `${API_BASE_URL}/api/offer-schedules`,
+  
+  // Campaign endpoints
+  CAMPAIGNS: `${API_BASE_URL}/api/campaigns`,
+  
+  // Partner Management endpoints
+  PARTNERS: `${API_BASE_URL}/api/partners`,
+  PARTNER_POSTBACKS: (partnerId) => `${API_BASE_URL}/api/partners/${partnerId}/postbacks`,
   
   // Public API endpoints
   PUBLIC_GAMES: `${API_BASE_URL}/api/public/games`,
@@ -96,5 +114,8 @@ export const apiCall = async (url, options = {}) => {
 console.log('API Configuration:', {
   backendUrl: API_BASE_URL,
   currentHost: window.location.hostname,
-  environment: process.env.NODE_ENV
+  currentProtocol: window.location.protocol,
+  environment: process.env.NODE_ENV,
+  envBackendUrl: process.env.REACT_APP_BACKEND_URL,
+  detectedEnvironment: window.location.hostname === 'localhost' ? 'development' : 'production'
 });
