@@ -1,6 +1,8 @@
 // Updated handlePostbackSend function for Dashboard.jsx
 // Replace the existing handlePostbackSend function with this one
 
+import { API_ENDPOINTS } from '../config/api.js';
+
 const handlePostbackSend = async (e) => {
   e.preventDefault();
   setPostbackLoading(true);
@@ -11,7 +13,7 @@ const handlePostbackSend = async (e) => {
     
     if (postbackMethod === 'GET') {
       // Use the legacy proxy endpoint for GET requests (backward compatibility)
-      const proxyUrl = `/proxy-postback?target=${encodeURIComponent(previewUrl)}`;
+      const proxyUrl = `${API_ENDPOINTS.PROXY_POSTBACK}?target=${encodeURIComponent(previewUrl)}`;
       console.log('Sending GET request to proxy:', proxyUrl);
       
       response = await fetch(proxyUrl, { 
@@ -40,7 +42,7 @@ const handlePostbackSend = async (e) => {
       console.log('Sending POST request to:', postbackUrl);
       console.log('Payload:', postPayload);
       
-      response = await fetch('/proxy-postback', {
+      response = await fetch(API_ENDPOINTS.PROXY_POSTBACK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
