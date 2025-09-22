@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
+const axios = require('axios');
+const nodemailer = require('nodemailer');
 const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
@@ -196,6 +198,8 @@ const corsOptions = {
       'https://gameproback.onrender.com',
       'https://gamepro.pw',
       'https://www.gamepro.pw',
+      'http://gamepro.pw',
+      'http://www.gamepro.pw',
       // Add any other domains you might use
       /\.onrender\.com$/,
       /\.netlify\.app$/,
@@ -214,9 +218,11 @@ const corsOptions = {
     });
     
     if (isAllowed) {
+      console.log(`CORS allowed origin: ${origin}`);
       callback(null, true);
     } else {
       console.log(`CORS blocked origin: ${origin}`);
+      console.log('Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -234,6 +240,10 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly
+app.options('*', cors(corsOptions));
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
@@ -926,11 +936,7 @@ app.put('/api/games/:id', async (req, res) => {
   res.json(games[idx]);
 });
 
-// Get all games (offers)
-app.get('/api/games', async (req, res) => {
-  const games = await loadGames();
-  res.json(games);
-});
+// Duplicate route removed - already defined above
 
 // Endpoint to add a fetch record
 app.post('/api/fetch-history', async (req, res) => {
@@ -1104,7 +1110,7 @@ app.post('/api/check-domain', async (req, res) => {
 // gamesFile already declared above
 
 // filepath: backend/server.js (or your backend entry)
-app.post('/api/games/bulk',async (req, res) => {
+app.post('/api/games/bulk', async (req, res) => {
   const offers = req.body.offers;
   if (!Array.isArray(offers)) {
     return res.status(400).json({ error: 'Offers must be an array' });}
@@ -1129,54 +1135,6 @@ app.post('/api/games/bulk',async (req, res) => {
 });
 
 // Removed orphaned code that was causing syntax errors
-
-// POST /api/schedules (for BulkSchedulingSection)
-app.post('/api/schedules', async (req, res) => {
-  const { offerIds, url, startDate, endDate, startTime, endTime } = req.body;
-  if (!Array.isArray(offerIds) || !url || !startDate || !endDate || !startTime || !endTime) {
-    return res.status(400).json({ error: 'All fields are required.' });
-  }
-  let allSchedules = await loadSchedules();
-  offerIds.forEach(offerId => {
-    allSchedules.push({
-      id: Date.now().toString() + Math.random().toString(36).slice(2),
-      offerId,
-      url,
-      startDate,
-      endDate,
-      startTime,
-      endTime
-    });
-  });
-  await saveSchedules(allSchedules);
-  res.json({ success: true });
-});
-
-// GET /api/schedules
-app.get('/api/schedules', async (req, res) => {
-  const allSchedules = await loadSchedules();
-  res.json(allSchedules);
-});
-
-// PATCH /api/schedules/:id
-app.patch('/api/schedules/:id', async (req, res) => {
-  const { id } = req.params;
-  let allSchedules = await loadSchedules();
-  const idx = allSchedules.findIndex(s => s.id === id);
-  if (idx === -1) return res.status(404).json({ error: 'Schedule not found.' });
-  allSchedules[idx] = { ...allSchedules[idx], ...req.body };
-  await saveSchedules(allSchedules);
-  res.json(allSchedules[idx]);
-});
-
-// DELETE /api/schedules/:id
-app.delete('/api/schedules/:id', async (req, res) => {
-  const { id } = req.params;
-  let allSchedules = await loadSchedules();
-  allSchedules = allSchedules.filter(s => s.id !== id);
-  await saveSchedules(allSchedules);
-  res.json({ success: true });
-});
 
 
 const PROXY_CONFIG = {
