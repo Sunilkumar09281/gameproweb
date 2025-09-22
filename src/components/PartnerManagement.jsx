@@ -90,7 +90,7 @@ const PartnerManagement = () => {
 
   // Delete partner
   const handleDeletePartner = async (partnerId) => {
-    if (!confirm('Are you sure you want to delete this partner? This action cannot be undone.')) {
+    if (!window.confirm('Are you sure you want to delete this partner? This action cannot be undone.')) {
       return;
     }
 

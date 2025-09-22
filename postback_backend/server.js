@@ -190,9 +190,12 @@ const corsOptions = {
       'http://localhost:3001',
       'https://localhost:3000',
       'https://localhost:3001',
-      // Add your Render frontend URL here
+      // Add your frontend URLs here
       'https://gamepro.onrender.com',
       'https://gameproweb.onrender.com',
+      'https://gameproback.onrender.com',
+      'https://gamepro.pw',
+      'https://www.gamepro.pw',
       // Add any other domains you might use
       /\.onrender\.com$/,
       /\.netlify\.app$/,

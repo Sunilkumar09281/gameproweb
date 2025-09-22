@@ -8,5 +8,15 @@
     "lastPostbackAt": "2025-09-19T06:20:02.102Z",
     "postbackUrl": "http://localhost:5000/api/receive-postback?partner_id=5c6bb65e-41af-4c08-8806-d8f0019783b4",
     "status": "active"
+  },
+  {
+    "id": "8e270c99-5e2f-487d-8766-fbc5d056607e",
+    "name": "don",
+    "description": "jahd",
+    "createdAt": "2025-09-19T07:47:01.780Z",
+    "totalPostbacks": 0,
+    "lastPostbackAt": null,
+    "postbackUrl": "http://localhost:5000/api/receive-postback?partner_id=8e270c99-5e2f-487d-8766-fbc5d056607e",
+    "status": "active"
   }
 ]

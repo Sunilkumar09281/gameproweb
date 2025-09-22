@@ -19,17 +19,22 @@ const getBackendUrl = () => {
   if (currentHost.includes('onrender.com')) {
     // If frontend is on Render, backend is likely on Render too
     // Based on your Render service, the backend should be at gamepro service
-    return 'https://gamepro-latest.onrender.com'; // Update this with your actual backend URL
+    return 'https://gameproback.onrender.com'; // Update this with your actual backend URL
+  }
+  
+  if (currentHost.includes('gamepro.pw')) {
+    // Custom domain frontend
+    return 'https://gameproback.onrender.com'; // Your backend URL
   }
   
   if (currentHost.includes('netlify.app')) {
     // Netlify frontend, backend might be on Render or Heroku
-    return 'https://gamepro.onrender.com'; // Update with your actual backend URL
+    return 'https://gameproback.onrender.com'; // Update with your actual backend URL
   }
   
   if (currentHost.includes('vercel.app')) {
     // Vercel frontend, backend might be elsewhere
-    return 'https://gamepro.onrender.com'; // Update with your actual backend URL
+    return 'https://gameproback.onrender.com'; // Update with your actual backend URL
   }
   
   // Default fallback
