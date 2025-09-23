@@ -1434,6 +1434,12 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   const [addedOffersError, setAddedOffersError] = useState(null);
   const [dynamicCategories, setDynamicCategories] = useState(gameCategories);
   
+  // Survey states
+  const [surveys, setSurveys] = useState([]);
+  const [loadingSurveys, setLoadingSurveys] = useState(true);
+  const [surveysError, setSurveysError] = useState(null);
+  const [surveysBySection, setSurveysBySection] = useState({});
+  
   const [showOfferModal, setShowOfferModal] = useState(false);
   const [modalContent, setModalContent] = useState(null);
 
@@ -1460,9 +1466,73 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
       });
   };
 
+  // Survey Card Component
+  const SurveyCard = ({ survey, onClick }) => (
+    <div className="gradient-card-wrapper"
+      style={{
+        background: `linear-gradient(135deg, ${survey.providerColorCode || '#3498db'}, ${survey.providerColorCode || '#3498db'}dd)`,
+        padding: '2px',
+        borderRadius: '20px',
+        display: 'inline-block'
+      }}
+    >
+      <div className="survey-card" onClick={() => handleProtectedClick(() => onClick(survey))}>
+        <div className="survey-card-top">
+          <img
+            src={survey.image || defaultImage}
+            alt={survey.name}
+            className="survey-icon"
+            onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=S'}
+          />
+        </div>
+        <div className="survey-card-bottom">
+          <h3 className="survey-title">{survey.name}</h3>
+          <p className="survey-condition">{survey.providerName}</p>
+          <div className="survey-value-and-stars">
+            <p className="survey-value">${survey.payout}</p>
+            <div className="task-card-stars">
+              {[1,2,3,4,5].map(i => (
+                <span key={i} className="star-icon full-star">★</span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Fetch surveys function
+  const fetchSurveys = async () => {
+    setLoadingSurveys(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/surveys/active`);
+      if (!response.ok) throw new Error('Failed to fetch surveys');
+      const data = await response.json();
+      setSurveys(data);
+      
+      // Group surveys by section
+      const grouped = data.reduce((acc, survey) => {
+        const section = survey.section || 'Featured Surveys';
+        if (!acc[section]) acc[section] = [];
+        acc[section].push(survey);
+        return acc;
+      }, {});
+      setSurveysBySection(grouped);
+      setSurveysError(null);
+    } catch (error) {
+      console.error('Error fetching surveys:', error);
+      setSurveysError(error.message);
+    } finally {
+      setLoadingSurveys(false);
+    }
+  };
+
   useEffect(() => {
     let cancelled = false;
     const url = 'http://localhost:5000/api/games';
+    
+    // Fetch surveys
+    fetchSurveys();
   
     const isGameItem = (it) => Boolean(it && (it.genre || it.rating || String(it.type).toLowerCase() === 'game'));
     const getId = (it) => it?.id ?? it?.offer_id ?? it?._id ?? it?.title ?? JSON.stringify(it);
@@ -1624,232 +1694,68 @@ const fetchAddedOffers = async () => {
           );
         })}
 
-        {/* Featured Surveys Section */}
-        <section className="featured-surveys-section game-section">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <h2 className="featured-surveys-title-with-icon">
-                Featured Surveys
-            </h2>
-            <button
-              className="view-all-button"
-              onClick={() => handleProtectedClick(() => setExpandedSections(prev => ({ ...prev, 'Featured Surveys': !prev['Featured Surveys'] })))}
-            >
-              {expandedSections['Featured Surveys'] ? 'Show Less' : 'View All'}
-            </button>
-          </div>
-
-          {expandedSections['Featured Surveys'] ? (
-            <div className="task-cards-grid">
-                {premiumSurvey && (
-                  <div className="gradient-card-wrapper"
-                    style={{
-                      background: premiumSurvey.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div
-  className="survey-card"
-  onClick={() => handleProtectedClick(() => {
-    handleGameClick(premiumSurvey);
-    setSelectedItem(premiumSurvey);
-  })}
->
-
-                      <div className="survey-card-top">
-                        <img
-                          src={premiumSurvey.image}
-                          alt={premiumSurvey.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{premiumSurvey.shortTitle || premiumSurvey.title}</h3>
-                        <p className="survey-condition">{premiumSurvey.displayCondition}</p>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{premiumSurvey.displayValue}</p>
-                            {renderStars(premiumSurvey.starRating)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {regularSurvey && (
-                  <div className="gradient-card-wrapper"
-                    style={{
-                      background: regularSurvey.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div className="survey-card" onClick={() => handleProtectedClick(() => setSelectedItem(regularSurvey))}>
-                      <div className="survey-card-top">
-                        <img
-                          src={regularSurvey.image}
-                          alt={regularSurvey.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{regularSurvey.shortTitle || regularSurvey.title}</h3>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{regularSurvey.displayValue}</p>
-                            {renderStars(regularSurvey.starRating)}
-                        </div>
-                        <p className="survey-condition">{regularSurvey.displayCondition}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {lockedSurveys.map(task => (
-                  <div className="gradient-card-wrapper"
-                    key={task.id}
-                    style={{
-                      background: task.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div className="survey-card locked">
-                      <div className="survey-card-top">
-                        <img
-                          src={task.image}
-                          alt={task.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{task.shortTitle || task.title}</h3>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{task.displayValue}</p>
-                        </div>
-                        <p className="survey-condition">{task.displayCondition}</p>
-                      </div>
-                      <div className="survey-lock-overlay">
-                        <Lock size={20} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
+        {/* Dynamic Survey Sections */}
+        {loadingSurveys ? (
+          <section className="featured-surveys-section game-section">
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
+              <div style={{ color: '#666', fontSize: '16px' }}>Loading surveys...</div>
             </div>
-          ) : (
-            <div className="carousel-wrapper" style={{ position: 'relative' }}>
-              <button className="scroll-btn left" onClick={() => handleProtectedClick(() => scrollLeft('Featured Surveys'))}>&lt;</button>
-              <div className="featured-surveys-carousel" id="carousel-Featured-Surveys">
-                {premiumSurvey && (
-                  <div className="gradient-card-wrapper"
-                    style={{
-                      background: premiumSurvey.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div
-  className="survey-card"
-  onClick={() => handleProtectedClick(() => {
-    handleGameClick(premiumSurvey);
-    setSelectedItem(premiumSurvey);
-  })}
->
-
-                      <div className="survey-card-top">
-                        <img
-                          src={premiumSurvey.image}
-                          alt={premiumSurvey.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{premiumSurvey.shortTitle || premiumSurvey.title}</h3>
-                        <p className="survey-condition">{premiumSurvey.displayCondition}</p>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{premiumSurvey.displayValue}</p>
-                            {renderStars(premiumSurvey.starRating)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {regularSurvey && (
-                  <div className="gradient-card-wrapper"
-                    style={{
-                      background: regularSurvey.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div className="survey-card" onClick={() => handleProtectedClick(() => setSelectedItem(regularSurvey))}>
-                      <div className="survey-card-top">
-                        <img
-                          src={regularSurvey.image}
-                          alt={regularSurvey.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{regularSurvey.shortTitle || regularSurvey.title}</h3>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{regularSurvey.displayValue}</p>
-                            {renderStars(regularSurvey.starRating)}
-                        </div>
-                        <p className="survey-condition">{regularSurvey.displayCondition}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                {lockedSurveys.map(task => (
-                  <div className="gradient-card-wrapper"
-                    key={task.id}
-                    style={{
-                      background: task.gradient,
-                      padding: '2px',
-                      borderRadius: '20px',
-                      display: 'inline-block'
-                    }}
-                  >
-                    <div className="survey-card locked">
-                      <div className="survey-card-top">
-                        <img
-                          src={task.image}
-                          alt={task.title}
-                          className="survey-icon"
-                          onError={(e) => e.target.src = 'https://placehold.co/40x40/808080/FFFFFF?text=I'}
-                        />
-                      </div>
-                      <div className="survey-card-bottom">
-                        <h3 className="survey-title">{task.shortTitle || task.title}</h3>
-                        <div className="survey-value-and-stars">
-                            <p className="survey-value">{task.displayValue}</p>
-                        </div>
-                        <p className="survey-condition">{task.displayCondition}</p>
-                      </div>
-                      <div className="survey-lock-overlay">
-                        <Lock size={20} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <button className="scroll-btn right" onClick={() => handleProtectedClick(() => scrollRight('Featured Surveys'))}>&gt;</button>
-
-              <div className="locked-surveys-message-central">
-                  <Lock size={30} />
-                  <p>20 Surveys are locked</p>
-                  <span>Complete your 1 available survey, to unlock all surveys</span>
-              </div>
+          </section>
+        ) : surveysError ? (
+          <section className="featured-surveys-section game-section">
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '40px' }}>
+              <div style={{ color: '#e74c3c', fontSize: '16px' }}>Error loading surveys: {surveysError}</div>
             </div>
-          )}
-        </section>
+          </section>
+        ) : (
+          Object.entries(surveysBySection).map(([sectionName, sectionSurveys]) => (
+            <section key={sectionName} className="featured-surveys-section game-section">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                <h2 className="featured-surveys-title-with-icon">
+                  📋 {sectionName}
+                </h2>
+                <button
+                  className="view-all-button"
+                  onClick={() => handleProtectedClick(() => setExpandedSections(prev => ({ ...prev, [sectionName]: !prev[sectionName] })))}
+                >
+                  {expandedSections[sectionName] ? 'Show Less' : 'View All'}
+                </button>
+              </div>
+
+              {expandedSections[sectionName] ? (
+                <div className="task-cards-grid">
+                  {sectionSurveys.map(survey => (
+                    <SurveyCard 
+                      key={survey.id} 
+                      survey={survey} 
+                      onClick={(survey) => {
+                        handleGameClick(survey);
+                        setSelectedItem(survey);
+                      }} 
+                    />
+                  ))}
+                </div>
+              ) : (
+                <div className="carousel-wrapper" style={{ position: 'relative' }}>
+                  <button className="scroll-btn left" onClick={() => handleProtectedClick(() => scrollLeft(sectionName))}>&lt;</button>
+                  <div className="featured-surveys-carousel" id={`carousel-${sectionName.replace(/\s/g, '-')}`}>
+                    {sectionSurveys.slice(0, 6).map(survey => (
+                      <SurveyCard 
+                        key={survey.id} 
+                        survey={survey} 
+                        onClick={(survey) => {
+                          handleGameClick(survey);
+                          setSelectedItem(survey);
+                        }} 
+                      />
+                    ))}
+                  </div>
+                  <button className="scroll-btn right" onClick={() => handleProtectedClick(() => scrollRight(sectionName))}>&gt;</button>
+                </div>
+              )}
+            </section>
+          ))
+        )}
 
         {/* Offer Partners Section */}
         <section className="offer-partners-section game-section">
@@ -1868,350 +1774,34 @@ const fetchAddedOffers = async () => {
         </section>
       </main>
 
-      {selectedItem && <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} onViewLottery={() => setShowLotteryModal(true)} handleProtectedClick={handleProtectedClick} />}
-      {showLotteryModal && <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />}
-      
-      <section
-        className="added-offers-section game-section"
-        id="section-Added-Offers"
-        style={{ marginTop: 24 }}
-      >
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            marginBottom: 16,
-          }}
-        >
-          <h2 className="section-title-with-icon">Added Games</h2>
-          <button
-            className="view-all-button"
-            onClick={() =>
-              setExpandedSections((prev) => ({
-                ...prev,
-                ["Added Offers"]: !prev["Added Offers"],
-              }))
-            }
-          >
-            {expandedSections["Added Offers"] ? "Show Less" : "View All"}
-          </button>
-        </div>
-        
-        {loadingAddedOffers ? (
-          <div>Loading added offers…</div>
-        ) : addedOffersError ? (
-          <div className="text-red-500">Error loading offers: {addedOffersError}</div>
-        ) : addedOffers.length === 0 ? (
-          <div>No offers added yet.</div>
-        ) : (
-          <>
-            {expandedSections["Added Offers"] ? (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                  gap: "16px",
-                }}
-              >
-                {addedOffers.map((item) => {
-                  const isGame = Boolean(item.genre || item.rating);
-                  const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-                
-                  const rawRating = parseFloat(item.rating);
-                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-                  ratingNum = Math.max(0, Math.min(5, ratingNum));
-                  const filledStars = "★".repeat(Math.round(ratingNum));
-                  const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-                  const ratingDisplay = ratingNum.toFixed(1);
-                
-                  return (
-                    <div
-                      key={item.id ?? item.title ?? Math.random()}
-                      style={{
-                        background: "#1e1e2f",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        color: "#fff",
-                        display: "flex",
-                        flexDirection: "column",
-                        height: "100%",
-                      }}
-                    >
-                      <img
-                        src={imgSrc}
-                        alt={item.name || item.title}
-                        style={{
-                          width: "100%",
-                          height: "120px",
-                          objectFit: "cover",
-                        }}
-                      />
-                      <div style={{ padding: "10px", flex: 1 }}>
-                        <p
-                          style={{
-                            fontWeight: "bold",
-                            color: "gold",
-                            fontSize: "15px",
-                            marginBottom: "6px",
-                          }}
-                        >
-                          {item.offerName || item.name || item.title || "Untitled Offer"}
-                        </p>
-                        
-                        {isGame ? (
-                          <>
-                            <p style={{ color: "#aaa", fontSize: "13px" }}>
-                              {item.genre || "Unknown Genre"}
-                            </p>
-                            <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                              {filledStars}
-                              {emptyStars} {ratingDisplay}
-                            </p>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                            {Object.entries(item)
-                              .filter(([key, val]) =>
-                                val &&
-                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                              )
-                              .map(([key, val]) => {
-                                let displayVal = val;
-                                if (
-                                  key.toLowerCase().includes("date") ||
-                                  key.toLowerCase().includes("expires")
-                                ) {
-                                  const parsed = new Date(val);
-                                  if (!isNaN(parsed.getTime())) {
-                                    displayVal = parsed.toLocaleString();
-                                  }
-                                }
-                                return (
-                                  <p key={key}>
-                                    <strong style={{ color: "#aaa" }}>
-                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
-                                    </strong>
-                                    {String(displayVal)}
-                                  </p>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: "flex",
-                  overflowX: "auto",
-                  gap: "16px",
-                  paddingBottom: "10px",
-                  scrollbarWidth: "thin",
-                }}
-              >
-                {addedOffers.slice(0, 12).map((item) => {
-                  const isGame = Boolean(item.genre || item.rating);
-                  const imgSrc = item.image || "https://i.pinimg.com/1200x/69/4a/5d/694a5de914642d98ff790434731ed11e.jpg";
-                
-                  const rawRating = parseFloat(item.rating);
-                  let ratingNum = Number.isFinite(rawRating) ? rawRating : 0;
-                  ratingNum = Math.max(0, Math.min(5, ratingNum));
-                  const filledStars = "★".repeat(Math.round(ratingNum));
-                  const emptyStars = "☆".repeat(5 - Math.round(ratingNum));
-                  const ratingDisplay = ratingNum.toFixed(1);
-                
-                  return (
-                    <div
-                      key={item.id ?? item.title ?? Math.random()}
-                      style={{
-                        flex: "0 0 auto",
-                        width: "200px",
-                        background: "#1e1e2f",
-                        borderRadius: 12,
-                        overflow: "hidden",
-                        color: "#fff",
-                        display: "flex",
-                        flexDirection: "column",
-                        height: "100%",
-                      }}
-                    >
-                      <img
-                        src={imgSrc}
-                        alt={item.name || item.title}
-                        style={{
-                          width: "100%",
-                          height: "120px",
-                          objectFit: "cover",
-                        }}
-                      />
-                      <div style={{ padding: "10px", flex: 1 }}>
-                        <p
-                          style={{
-                            fontWeight: "bold",
-                            color: "gold",
-                            fontSize: "15px",
-                            marginBottom: "6px",
-                          }}
-                        >
-                          {item.offerName || item.name || item.title || "Untitled Offer"}
-                        </p>
-                        
-                        {isGame ? (
-                          <>
-                            <p style={{ color: "#aaa", fontSize: "13px" }}>
-                              {item.genre || "Unknown Genre"}
-                            </p>
-                            <p style={{ color: "#FFD700", fontSize: "13px" }}>
-                              {filledStars}
-                              {emptyStars} {ratingDisplay}
-                            </p>
-                          </>
-                        ) : (
-                          <div style={{ fontSize: "12px", color: "#ccc", lineHeight: "1.4" }}>
-                            {Object.entries(item)
-                              .filter(([key, val]) =>
-                                val &&
-                                !["id", "image", "title", "name", "offerName", "rating", "genre"].includes(key)
-                              )
-                              .map(([key, val]) => {
-                                let displayVal = val;
-                                if (
-                                  key.toLowerCase().includes("date") ||
-                                  key.toLowerCase().includes("expires")
-                                ) {
-                                  const parsed = new Date(val);
-                                  if (!isNaN(parsed.getTime())) {
-                                    displayVal = parsed.toLocaleString();
-                                  }
-                                }
-                                return (
-                                  <p key={key}>
-                                    <strong style={{ color: "#aaa" }}>
-                                      {key.replace(/([A-Z])/g, " $1")}:{" "}
-                                    </strong>
-                                    {String(displayVal)}
-                                  </p>
-                                );
-                              })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </>
-        )}
-      </section>
-{showOfferModal && modalContent?.item && (
-  <div
-    className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4"
-    onClick={() => setShowOfferModal(false)}
-  >
-    <div
-      className="relative w-full max-w-[900px] bg-gray-900 rounded-2xl overflow-hidden shadow-2xl border border-gray-600"
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Header */}
-      <div className="p-6 pb-4">
-        <h2 className="text-2xl font-bold text-white">
-          {modalContent.item.title || modalContent.item.name}
-        </h2>
-      </div>
+      {selectedItem && (
+        <ItemDetailModal
+          item={selectedItem}
+          onClose={() => setSelectedItem(null)}
+          onViewLottery={() => setShowLotteryModal(true)}
+          handleProtectedClick={handleProtectedClick}
+        />
+      )}
 
-      {/* Main Content Container */}
-      <div className="px-6 pb-6 flex">
-        {/* Left Side - Image */}
-        <div className="w-[400px] h-[280px] relative mr-6">
-          <img
-            src={modalContent.item.image || defaultImage}
-            alt={modalContent.item.title || modalContent.item.name}
-            className="w-full h-full object-cover rounded-lg"
-            onError={(e) =>
-              (e.target.src =
-                "https://placehold.co/400x280/1a1a2e/16213e?text=Offer+Image")
-            }
-          />
-          
-          {/* Stars at bottom of image */}
-          <div className="absolute bottom-4 left-4 flex gap-1">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="w-6 h-6">
-                <svg className="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-                </svg>
-              </div>
-            ))}
-          </div>
-        </div>
+      {showLotteryModal && (
+        <LotteryDetailModal onClose={() => setShowLotteryModal(false)} />
+      )}
 
-        {/* Right Side - Details */}
-        <div className="flex-1">
-          {/* Play and Earn Button with Price */}
-          <div className="flex items-center justify-between mb-4">
-            <button className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white font-semibold py-3 px-6 rounded-lg transition-all duration-200">
-              Play and Earn
-            </button>
-            <div className="bg-gray-700 text-white px-4 py-2 rounded-lg font-semibold">
-              $5.25
+      {showOfferModal && modalContent && (
+        <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4" onClick={() => setShowOfferModal(false)}>
+          <div className="bg-gradient-to-br from-gray-800 via-gray-900 to-black rounded-3xl shadow-2xl overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-600" onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 border-b border-gray-700">
+              <div className="flex justify-between items-center">
+                <h2 className="text-3xl font-bold text-white">{modalContent.item?.title || 'Offer Details'}</h2>
+                <button onClick={() => setShowOfferModal(false)} className="text-gray-400 hover:text-white transition-colors text-3xl font-bold">×</button>
+              </div>
+            </div>
+            <div className="p-6 text-white">
+              {renderOfferDetails(modalContent.item)}
             </div>
           </div>
-
-          {/* Rewards Header */}
-          <h3 className="text-white font-semibold mb-3">Rewards</h3>
-          
-          {/* Purple Progress Bar */}
-          <div className="w-full bg-gray-700 rounded-full h-1 mb-4">
-            <div className="bg-gradient-to-r from-purple-500 to-purple-600 h-1 rounded-full" style={{width: '70%'}}></div>
-          </div>
-
-          {/* Scrollable Dynamic Fields */}
-          <div className="space-y-2 overflow-y-auto max-h-[200px] pr-2">
-            {Object.entries(modalContent.item).map(
-              ([key, value], index) =>
-                value &&
-                key !== "image" && (
-                  <div
-                    key={key}
-                    className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg"
-                  >
-                    {/* Avatar/Icon */}
-                    {/* <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-white text-xs font-bold">
-                        {key.charAt(0).toUpperCase()}
-                      </span>
-                    </div> */}
-                    
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="text-white font-medium capitalize text-sm">
-                        {key.replace(/_/g, ' ')}
-                      </div>
-                      <div className="text-gray-400 text-xs break-words">
-                        {String(value)}
-                      </div>
-                    </div>
-                    
-                    {/* Coins */}
-                    {/* <div className="text-yellow-400 font-semibold text-sm">
-                      150 Coins
-                    </div> */}
-                  </div>
-                )
-            )}
-          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
-      
-      <Footer />
+      )}
     </div>
   );
 }

@@ -1,0 +1,32 @@
+[
+  {
+    "id": "eeac1727-e259-4afc-a20c-b0dc1429c371",
+    "name": "hjfyu",
+    "pointPercentage": 55,
+    "content": "",
+    "level": "Beginner",
+    "iframeCode": "",
+    "isRecommended": false,
+    "buttonText": "",
+    "colorCode": "#007bff",
+    "status": "Active",
+    "image": "/uploads/1758606897197-Screenshot (5).png",
+    "createdAt": "2025-09-23T05:54:57.243Z",
+    "updatedAt": "2025-09-23T05:54:57.243Z"
+  },
+  {
+    "id": "089245f4-6391-463c-8be3-a2c7bf903cb5",
+    "name": "PepperAds",
+    "pointPercentage": 99.98,
+    "content": "survey provider hostslice.",
+    "level": "Advanced",
+    "iframeCode": "",
+    "isRecommended": false,
+    "buttonText": "dangue",
+    "colorCode": "#ff0000",
+    "status": "Active",
+    "image": "/uploads/1758619026918-fog-dark-clouds-mountains.jpg",
+    "createdAt": "2025-09-23T09:17:07.000Z",
+    "updatedAt": "2025-09-23T09:17:07.000Z"
+  }
+]

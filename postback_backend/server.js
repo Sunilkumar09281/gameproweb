@@ -8,6 +8,19 @@ const { v4: uuidv4 } = require('uuid');
 const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
 const fs = require('fs').promises;
+const multer = require('multer');
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/') // Make sure this directory exists
+  },
+  filename: function (req, file, cb) {
+    cb(null, Date.now() + '-' + file.originalname)
+  }
+});
+
+const upload = multer({ storage: storage });
 const path = require('path');
 
 const app = express();
@@ -15,13 +28,16 @@ const PORT = process.env.PORT || 5000;
 
 // File paths
 const postbacksFile = path.join(__dirname, 'postbacks.json');
-const gamesFile = path.join(__dirname, 'games.json');
 const partnersFile = path.join(__dirname, 'partners.json');
-const API_KEYS_FILE = path.join(__dirname, 'api_keys.json');
-const PLAY_RESPONSES_FILE = path.join(__dirname, 'play_responses.json');
-const FETCH_HISTORY_FILE = path.join(__dirname, 'fetch_history.json');
-const EMAIL_CONFIG_FILE = path.join(__dirname, 'email_config.json');
-const SCHEDULES_FILE = path.join(__dirname, 'offer_schedules.json');
+const gamesFile = path.join(__dirname, 'games.json');
+const apiKeysFile = path.join(__dirname, 'api_keys.json');
+const campaignsFile = path.join(__dirname, 'campaigns.json');
+const schedulesFile = path.join(__dirname, 'offer_schedules.json');
+const playResponsesFile = path.join(__dirname, 'play_responses.json');
+const fetchHistoryFile = path.join(__dirname, 'fetch_history.json');
+const emailConfigFile = path.join(__dirname, 'email_config.json');
+const surveyProvidersFile = path.join(__dirname, 'survey_providers.json');
+const surveyLinksFile = path.join(__dirname, 'survey_links.json');
 
 // Load/save postbacks
 async function loadPostbacks() {
@@ -168,6 +184,34 @@ try {
   };
 }
 
+// Load/save survey providers
+async function loadSurveyProviders() {
+  try {
+    const data = await fs.readFile(surveyProvidersFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveSurveyProviders(providers) {
+  await fs.writeFile(surveyProvidersFile, JSON.stringify(providers, null, 2));
+}
+
+// Load/save survey links
+async function loadSurveyLinks() {
+  try {
+    const data = await fs.readFile(surveyLinksFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveSurveyLinks(links) {
+  await fs.writeFile(surveyLinksFile, JSON.stringify(links, null, 2));
+}
+
 // Rate limiter: 10 requests per IP per day for public API
 const publicApiLimiter = rateLimit({
   windowMs: 24 * 60 * 60 * 1000, // 24 hours
@@ -239,13 +283,10 @@ const corsOptions = {
   ]
 };
 
-app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly
-app.options('*', cors(corsOptions));
-
+app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -1134,6 +1175,239 @@ app.post('/api/games/bulk', async (req, res) => {
   }
 });
 
+// Survey Provider Endpoints
+
+// Get all survey providers
+app.get('/api/survey-providers', async (req, res) => {
+  try {
+    const providers = await loadSurveyProviders();
+    res.json(providers);
+  } catch (error) {
+    console.error('Error loading survey providers:', error);
+    res.status(500).json({ error: 'Failed to load survey providers' });
+  }
+});
+
+// Create a new survey provider
+app.post('/api/survey-providers', upload.single('image'), async (req, res) => {
+  try {
+    console.log('Survey Provider POST request body:', req.body);
+    const { name, pointPercentage, content, level, iframeCode, isRecommended, buttonText, colorCode, status } = req.body;
+    
+    if (!name || !pointPercentage) {
+      console.log('Validation failed - Missing required fields:', { name, pointPercentage });
+      return res.status(400).json({ 
+        error: 'Name and Point Percentage are required',
+        received: { name, pointPercentage, hasName: !!name, hasPointPercentage: !!pointPercentage }
+      });
+    }
+
+    const providers = await loadSurveyProviders();
+    const newProvider = {
+      id: uuidv4(),
+      name,
+      pointPercentage: parseFloat(pointPercentage),
+      content: content || '',
+      level: level || '',
+      iframeCode: iframeCode || '',
+      isRecommended: isRecommended === 'true' || isRecommended === true,
+      buttonText: buttonText || '',
+      colorCode: colorCode || '#007bff',
+      status: status || 'Active',
+      image: req.file ? `/uploads/${req.file.filename}` : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    providers.push(newProvider);
+    await saveSurveyProviders(providers);
+    res.status(201).json(newProvider);
+  } catch (error) {
+    console.error('Error creating survey provider:', error);
+    res.status(500).json({ error: 'Failed to create survey provider' });
+  }
+});
+
+// Update a survey provider
+app.put('/api/survey-providers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, pointPercentage, content, level, iframeCode, isRecommended, buttonText, colorCode, status } = req.body;
+    
+    if (!name || !pointPercentage) {
+      return res.status(400).json({ error: 'Name and Point Percentage are required' });
+    }
+
+    const providers = await loadSurveyProviders();
+    const providerIndex = providers.findIndex(p => p.id === id);
+    
+    if (providerIndex === -1) {
+      return res.status(404).json({ error: 'Survey provider not found' });
+    }
+
+    providers[providerIndex] = {
+      ...providers[providerIndex],
+      name,
+      pointPercentage: parseFloat(pointPercentage),
+      content: content || '',
+      level: level || '',
+      iframeCode: iframeCode || '',
+      isRecommended: isRecommended || false,
+      buttonText: buttonText || '',
+      colorCode: colorCode || '#007bff',
+      status: status || 'Active',
+      updatedAt: new Date().toISOString()
+    };
+
+    await saveSurveyProviders(providers);
+    res.json(providers[providerIndex]);
+  } catch (error) {
+    console.error('Error updating survey provider:', error);
+    res.status(500).json({ error: 'Failed to update survey provider' });
+  }
+});
+
+// Delete a survey provider
+app.delete('/api/survey-providers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const providers = await loadSurveyProviders();
+    const filteredProviders = providers.filter(p => p.id !== id);
+    
+    if (filteredProviders.length === providers.length) {
+      return res.status(404).json({ error: 'Survey provider not found' });
+    }
+
+    await saveSurveyProviders(filteredProviders);
+    res.json({ message: 'Survey provider deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting survey provider:', error);
+    res.status(500).json({ error: 'Failed to delete survey provider' });
+  }
+});
+
+// Survey Link Endpoints
+
+// Get all survey links
+app.get('/api/survey-links', async (req, res) => {
+  try {
+    const links = await loadSurveyLinks();
+    res.json(links);
+  } catch (error) {
+    console.error('Error loading survey links:', error);
+    res.status(500).json({ error: 'Failed to load survey links' });
+  }
+});
+
+// Create a new survey link
+app.post('/api/survey-links', async (req, res) => {
+  try {
+    console.log('Survey Link POST request body:', req.body);
+    const { 
+      name, payout, link, linkOfferId, linkKeys, providerId, 
+      redirectLink, country, isRecommended, content, status, section 
+    } = req.body;
+    
+    if (!name || !payout || !link) {
+      console.log('Validation failed - Missing required fields:', { name, payout, link });
+      return res.status(400).json({ 
+        error: 'Name, Payout, and Link are required',
+        received: { name, payout, link, hasName: !!name, hasPayout: !!payout, hasLink: !!link }
+      });
+    }
+
+    const links = await loadSurveyLinks();
+    const newLink = {
+      id: uuidv4(),
+      name,
+      payout: parseFloat(payout),
+      link,
+      linkOfferId: linkOfferId || '',
+      linkKeys: linkKeys || '',
+      providerId: providerId || '',
+      redirectLink: redirectLink || '',
+      country: country || '',
+      isRecommended: isRecommended === 'true' || isRecommended === true,
+      content: content || '',
+      status: status || 'Active',
+      section: section || 'Featured Surveys',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    links.push(newLink);
+    await saveSurveyLinks(links);
+    res.status(201).json(newLink);
+  } catch (error) {
+    console.error('Error creating survey link:', error);
+    res.status(500).json({ error: 'Failed to create survey link' });
+  }
+});
+
+// Update a survey link
+app.put('/api/survey-links/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { 
+      name, payout, link, linkOfferId, linkKeys, providerId, 
+      redirectLink, country, isRecommended, content, status, section 
+    } = req.body;
+    
+    if (!name || !payout || !link) {
+      return res.status(400).json({ error: 'Name, Payout, and Link are required' });
+    }
+
+    const links = await loadSurveyLinks();
+    const linkIndex = links.findIndex(l => l.id === id);
+    
+    if (linkIndex === -1) {
+      return res.status(404).json({ error: 'Survey link not found' });
+    }
+
+    links[linkIndex] = {
+      ...links[linkIndex],
+      name,
+      payout: parseFloat(payout),
+      link,
+      linkOfferId: linkOfferId || '',
+      linkKeys: linkKeys || '',
+      providerId: providerId || '',
+      redirectLink: redirectLink || '',
+      country: country || '',
+      isRecommended: isRecommended === 'true' || isRecommended === true,
+      content: content || '',
+      status: status || 'Active',
+      section: section || links[linkIndex].section || 'Featured Surveys',
+      updatedAt: new Date().toISOString()
+    };
+
+    await saveSurveyLinks(links);
+    res.json(links[linkIndex]);
+  } catch (error) {
+    console.error('Error updating survey link:', error);
+    res.status(500).json({ error: 'Failed to update survey link' });
+  }
+});
+
+// Delete a survey link
+app.delete('/api/survey-links/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const links = await loadSurveyLinks();
+    const filteredLinks = links.filter(l => l.id !== id);
+    
+    if (filteredLinks.length === links.length) {
+      return res.status(404).json({ error: 'Survey link not found' });
+    }
+
+    await saveSurveyLinks(filteredLinks);
+    res.json({ message: 'Survey link deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting survey link:', error);
+    res.status(500).json({ error: 'Failed to delete survey link' });
+  }
+});
+
 // Removed orphaned code that was causing syntax errors
 
 
@@ -1273,6 +1547,33 @@ app.post('/api/track-click', async (req, res) => {
       error: 'Failed to track click',
       details: error.message 
     });
+  }
+});
+
+// Get active surveys for home page
+app.get('/api/surveys/active', async (req, res) => {
+  try {
+    const surveyLinks = await loadSurveyLinks();
+    const surveyProviders = await loadSurveyProviders();
+    
+    // Filter only active surveys
+    const activeSurveys = surveyLinks.filter(survey => survey.status === 'Active');
+    
+    // Enhance surveys with provider information
+    const enhancedSurveys = activeSurveys.map(survey => {
+      const provider = surveyProviders.find(p => p.id === survey.providerId);
+      return {
+        ...survey,
+        providerName: provider ? provider.name : 'Unknown Provider',
+        providerButtonText: provider ? provider.buttonText : 'Start Survey',
+        providerColorCode: provider ? provider.colorCode : '#3498db'
+      };
+    });
+    
+    res.json(enhancedSurveys);
+  } catch (error) {
+    console.error('Error fetching active surveys:', error);
+    res.status(500).json({ error: 'Failed to fetch active surveys' });
   }
 });
 

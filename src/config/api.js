@@ -79,8 +79,10 @@ export const API_ENDPOINTS = {
   // Campaign endpoints
   CAMPAIGNS: `${API_BASE_URL}/api/campaigns`,
   
-  // Partner Management endpoints
+  // Partner endpoints
   PARTNERS: `${API_BASE_URL}/api/partners`,
+  SURVEY_PROVIDERS: `${API_BASE_URL}/api/survey-providers`,
+  SURVEY_LINKS: `${API_BASE_URL}/api/survey-links`,
   PARTNER_POSTBACKS: (partnerId) => `${API_BASE_URL}/api/partners/${partnerId}/postbacks`,
   
   // Public API endpoints

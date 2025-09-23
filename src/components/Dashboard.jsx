@@ -1,16 +1,15 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Dashboard.css';
-import styled from 'styled-components';
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged, signOut } from 'firebase/auth';
-import { getFirestore, doc, getDoc, setDoc, collection, getDocs, onSnapshot } from 'firebase/firestore';
+import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from "axios";
-import * as XLSX from 'xlsx';
 import PostbackDocumentation from './PostbackDocumentation';
 import PartnerManagement from './PartnerManagement';
-import { API_ENDPOINTS, apiCall } from '../config/api';
-import Tesseract from 'tesseract.js';
+import SurveyProvider from './SurveyProvider';
+import SurveyLink from './SurveyLink';
+import { API_ENDPOINTS } from '../config/api';
 import {
   ResponsiveContainer,
   PieChart, Pie, Cell, Tooltip,
@@ -32,7 +31,6 @@ export default function Dashboard() {
   // All useState/useEffect hooks at the top level, only once each
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [db, setDb] = useState(null);
   const [auth, setAuth] = useState(null);
   const [userId, setUserId] = useState(null);
   const [currentView, setCurrentView] = useState('dashboard');
@@ -355,10 +353,9 @@ useEffect(() => {
       app = getApp();
     }
 
-    const firestoreDb = getFirestore(app);
     const firebaseAuth = getAuth(app);
+    const firestoreDb = getFirestore(app);
 
-    setDb(firestoreDb);
     setAuth(firebaseAuth);
 
     // Sign in and listen for auth state changes
@@ -1535,21 +1532,11 @@ setSessions(arr);
             </div>
           </div>
         );
-      case 'add-game':
-        return (
-          <div style={{ maxWidth: 500, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
-            <h2>Add Game</h2>
-            <form onSubmit={handleGameFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <label>Title:<input name="title" value={gameForm.title} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
-              <label>Genre:<input name="genre" value={gameForm.genre} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
-              <label>Rating:<input name="rating" value={gameForm.rating} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
-              <label>Image Link:<input name="image" value={gameForm.image} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
-              <label>Final Link:<input name="link" value={gameForm.link} onChange={handleGameFormChange} required style={{ padding: 8, borderRadius: 4, border: '1px solid #000000' }} /></label>
-              {gameFormError && <div style={{ color: 'red' }}>{gameFormError}</div>}
-              <button type="submit" disabled={gameFormLoading} style={{ padding: 10, borderRadius: 4, background: '#1976d2', color: '#000000', border: 'none', fontWeight: 'bold' }}>{gameFormLoading ? 'Submitting...' : 'Submit'}</button>
-            </form>
-          </div>
-        );
+      case 'survey-provider':
+        return <SurveyProvider />;
+      
+      case 'survey-link':
+        return <SurveyLink />;
       case 'api-access':
         return (
           <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#000000', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
@@ -1976,8 +1963,11 @@ setSessions(arr);
           <li className={currentView === 'postback-tester' ? 'active' : ''} onClick={() => handleNavigationClick('postback-tester')}>
             Postback URL Tester
           </li>
-          <li className={currentView === 'add-game' ? 'active' : ''} onClick={() => handleNavigationClick('add-game')}>
-            Add Game
+          <li className={currentView === 'survey-provider' ? 'active' : ''} onClick={() => handleNavigationClick('survey-provider')}>
+            Survey Provider
+          </li>
+          <li className={currentView === 'survey-link' ? 'active' : ''} onClick={() => handleNavigationClick('survey-link')}>
+            Survey Link
           </li>
           <li className={currentView === 'api-access' ? 'active' : ''} onClick={() => handleNavigationClick('api-access')}>
             API Access
@@ -4571,7 +4561,6 @@ function OfferSchedularSection() {
   // Scheduler row handlers
   const addSchedule = () => setSchedules(prev => [...prev, { startDate: '', endDate: '', startTime: '', endTime: '' }]);
   const removeSchedule = idx => setSchedules(prev => prev.filter((_, i) => i !== idx));
-  const updateSchedule = (idx, field, value) => setSchedules(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
 
   // Submit handler
   const handleSubmit = async () => {
