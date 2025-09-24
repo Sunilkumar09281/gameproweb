@@ -465,15 +465,21 @@ app.all('/api/receive-postback', async (req, res) => {
     partnerInfo = partners.find(p => p.id === partnerId);
   }
   
-  // Extract user data from postback
+  // Extract user data from postback with flexible field mapping
   const userData = {
-    userId: req.query.user_id || req.body?.user_id || req.query.uid || req.body?.uid,
-    userName: req.query.user_name || req.body?.user_name || req.query.name || req.body?.name,
+    userId: req.query.user_id || req.body?.user_id || req.query.uid || req.body?.uid || 
+            req.query.id || req.body?.id || req.body?.name || req.query.name, // Use name as fallback ID
+    userName: req.query.user_name || req.body?.user_name || req.query.name || req.body?.name ||
+              req.query.username || req.body?.username,
     userEmail: req.query.user_email || req.body?.user_email || req.query.email || req.body?.email,
     platform: req.query.platform || req.body?.platform || partnerInfo?.name || 'Unknown Platform',
-    points: parseFloat(req.query.points || req.body?.points || req.query.amount || req.body?.amount || 0),
-    profilePicture: req.query.profile_picture || req.body?.profile_picture || req.query.avatar || req.body?.avatar,
-    level: req.query.level || req.body?.level || 1,
+    points: parseFloat(req.query.points || req.body?.points || req.query.amount || req.body?.amount || 
+                      req.query.reward || req.body?.reward || 0),
+    profilePicture: req.query.profile_picture || req.body?.profile_picture || 
+                   req.query.avatar || req.body?.avatar ||
+                   req.query.profile || req.body?.profile ||
+                   req.query.image || req.body?.image,
+    level: parseInt(req.query.level || req.body?.level || 1),
     country: req.query.country || req.body?.country || 'Unknown'
   };
   
@@ -502,8 +508,17 @@ app.all('/api/receive-postback', async (req, res) => {
   postbacks.push(requestData);
   await savePostbacks(postbacks);
   
+  // Debug logging
+  console.log('Received postback with data:', {
+    method: req.method,
+    query: req.query,
+    body: req.body,
+    extractedUserData: userData
+  });
+
   // Update leaderboard if we have user data
   if (userData.userId && userData.userName && userData.points > 0) {
+    console.log('Adding user to leaderboard:', userData);
     const leaderboard = await loadLeaderboard();
     const existingUserIndex = leaderboard.findIndex(u => u.userId === userData.userId);
     
@@ -638,6 +653,29 @@ app.delete('/api/leaderboard', async (req, res) => {
   } catch (error) {
     console.error('Error clearing leaderboard:', error);
     res.status(500).json({ error: 'Failed to clear leaderboard' });
+  }
+});
+
+// Quick test endpoint with your exact data
+app.post('/api/test-aahan', async (req, res) => {
+  try {
+    const testData = {
+      name: "aahan",
+      profile: "https://media.istockphoto.com/id/814423752/photo/eye-of-model-with-colorful-art-make-up-close-up.jpg?s=612x612&w=0&k=20&c=l15OdMWjgCKycMMShP8UK94ELVlEGvt7GmB_esHWPYE=",
+      points: "200"
+    };
+
+    // Simulate the postback by calling our own endpoint
+    const response = await fetch('http://localhost:5000/api/receive-postback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(testData)
+    });
+
+    const result = await response.json();
+    res.json({ success: true, message: 'Test completed', result });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 });
 
