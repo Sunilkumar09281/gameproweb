@@ -9,6 +9,7 @@ import SupportPage from './SupportPage.jsx';
 import ReferEarnPage from './refer.jsx';
 import Footer from './Footer.jsx'; // adjust the path if needed
 import DashboardPage from './Dashboard.jsx';
+import Leaderboard from './Leaderboard.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -1771,6 +1772,15 @@ const fetchAddedOffers = async () => {
             </div>
             <button className="scroll-btn right" onClick={() => handleProtectedClick(() => scrollRight('Offer Partners'))}>&gt;</button>
           </div>
+        </section>
+
+        {/* Leaderboard Section */}
+        <section className="leaderboard-section game-section">
+          <Leaderboard 
+            showTitle={true} 
+            maxUsers={10} 
+            isHomePage={true} 
+          />
         </section>
       </main>
 

@@ -438,6 +438,22 @@ app.post('/proxy-postback', async (req, res) => {
   }
 });
 
+// Load/save user leaderboard data
+const leaderboardFile = path.join(__dirname, 'leaderboard.json');
+
+async function loadLeaderboard() {
+  try {
+    const data = await fs.readFile(leaderboardFile, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+async function saveLeaderboard(leaderboard) {
+  await fs.writeFile(leaderboardFile, JSON.stringify(leaderboard, null, 2));
+}
+
 // Endpoint to receive postbacks (both GET and POST) with partner tracking
 app.all('/api/receive-postback', async (req, res) => {
   const partnerId = req.query.partner_id || req.body?.partner_id || 'unknown';
@@ -449,12 +465,25 @@ app.all('/api/receive-postback', async (req, res) => {
     partnerInfo = partners.find(p => p.id === partnerId);
   }
   
+  // Extract user data from postback
+  const userData = {
+    userId: req.query.user_id || req.body?.user_id || req.query.uid || req.body?.uid,
+    userName: req.query.user_name || req.body?.user_name || req.query.name || req.body?.name,
+    userEmail: req.query.user_email || req.body?.user_email || req.query.email || req.body?.email,
+    platform: req.query.platform || req.body?.platform || partnerInfo?.name || 'Unknown Platform',
+    points: parseFloat(req.query.points || req.body?.points || req.query.amount || req.body?.amount || 0),
+    profilePicture: req.query.profile_picture || req.body?.profile_picture || req.query.avatar || req.body?.avatar,
+    level: req.query.level || req.body?.level || 1,
+    country: req.query.country || req.body?.country || 'Unknown'
+  };
+  
   const requestData = {
     id: uuidv4(), // Unique ID for this postback
     method: req.method,
     receivedAt: new Date().toISOString(),
     partnerId: partnerId,
     partnerName: partnerInfo?.name || 'Unknown Partner',
+    userData: userData, // Store structured user data
     query: req.query,  // Always include query parameters
     headers: req.headers,
     ip: req.ip,
@@ -472,6 +501,46 @@ app.all('/api/receive-postback', async (req, res) => {
   const postbacks = await loadPostbacks();
   postbacks.push(requestData);
   await savePostbacks(postbacks);
+  
+  // Update leaderboard if we have user data
+  if (userData.userId && userData.userName && userData.points > 0) {
+    const leaderboard = await loadLeaderboard();
+    const existingUserIndex = leaderboard.findIndex(u => u.userId === userData.userId);
+    
+    if (existingUserIndex !== -1) {
+      // Update existing user
+      leaderboard[existingUserIndex].points += userData.points;
+      leaderboard[existingUserIndex].lastActivity = new Date().toISOString();
+      leaderboard[existingUserIndex].totalEarnings += userData.points;
+      leaderboard[existingUserIndex].completedTasks += 1;
+      if (userData.level) leaderboard[existingUserIndex].level = Math.max(leaderboard[existingUserIndex].level, userData.level);
+    } else {
+      // Add new user
+      leaderboard.push({
+        userId: userData.userId,
+        userName: userData.userName,
+        userEmail: userData.userEmail,
+        platform: userData.platform,
+        points: userData.points,
+        totalEarnings: userData.points,
+        completedTasks: 1,
+        level: userData.level || 1,
+        profilePicture: userData.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(userData.userName)}&background=random`,
+        country: userData.country,
+        joinedAt: new Date().toISOString(),
+        lastActivity: new Date().toISOString(),
+        rank: 0 // Will be calculated when fetching leaderboard
+      });
+    }
+    
+    // Sort leaderboard by points and update ranks
+    leaderboard.sort((a, b) => b.points - a.points);
+    leaderboard.forEach((user, index) => {
+      user.rank = index + 1;
+    });
+    
+    await saveLeaderboard(leaderboard);
+  }
   
   // Update partner stats if partner exists
   if (partnerInfo) {
@@ -492,6 +561,7 @@ app.all('/api/receive-postback', async (req, res) => {
     partnerId: partnerId,
     partnerName: requestData.partnerName,
     postbackId: requestData.id,
+    userData: userData,
     data: requestData 
   });
 });
@@ -506,6 +576,217 @@ app.get('/api/received-postbacks', async (req, res) => {
 app.delete('/api/received-postbacks', async (req, res) => {
   await savePostbacks([]);
   res.json({ message: 'All postbacks cleared' });
+});
+
+// Leaderboard API endpoints
+
+// Get leaderboard data
+app.get('/api/leaderboard', async (req, res) => {
+  try {
+    const { limit = 50, offset = 0 } = req.query;
+    const leaderboard = await loadLeaderboard();
+    
+    // Sort by points and update ranks
+    leaderboard.sort((a, b) => b.points - a.points);
+    leaderboard.forEach((user, index) => {
+      user.rank = index + 1;
+    });
+    
+    const paginatedData = leaderboard.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    
+    res.json({
+      total: leaderboard.length,
+      leaderboard: paginatedData,
+      topUsers: leaderboard.slice(0, 10) // Always return top 10 for home page display
+    });
+  } catch (error) {
+    console.error('Error fetching leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch leaderboard data' });
+  }
+});
+
+// Get specific user from leaderboard
+app.get('/api/leaderboard/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const leaderboard = await loadLeaderboard();
+    
+    // Sort by points and update ranks
+    leaderboard.sort((a, b) => b.points - a.points);
+    leaderboard.forEach((user, index) => {
+      user.rank = index + 1;
+    });
+    
+    const user = leaderboard.find(u => u.userId === userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found in leaderboard' });
+    }
+    
+    res.json(user);
+  } catch (error) {
+    console.error('Error fetching user from leaderboard:', error);
+    res.status(500).json({ error: 'Failed to fetch user data' });
+  }
+});
+
+// Clear leaderboard (admin only)
+app.delete('/api/leaderboard', async (req, res) => {
+  try {
+    await saveLeaderboard([]);
+    res.json({ message: 'Leaderboard cleared successfully' });
+  } catch (error) {
+    console.error('Error clearing leaderboard:', error);
+    res.status(500).json({ error: 'Failed to clear leaderboard' });
+  }
+});
+
+// Test endpoint to simulate postback data (for development/testing)
+app.post('/api/test-postback', async (req, res) => {
+  try {
+    const testUsers = [
+      {
+        user_id: 'test_user_1',
+        user_name: 'Naimafak',
+        user_email: 'naimafak@example.com',
+        platform: 'TimeWall',
+        points: 48,
+        level: 71,
+        country: 'US',
+        profile_picture: 'https://ui-avatars.io/api/?name=Naimafak&background=4CAF50'
+      },
+      {
+        user_id: 'test_user_2',
+        user_name: 'Kembuh',
+        user_email: 'kembuh@example.com',
+        platform: 'Torox',
+        points: 71,
+        level: 45,
+        country: 'UK',
+        profile_picture: 'https://ui-avatars.io/api/?name=Kembuh&background=00BFFF'
+      },
+      {
+        user_id: 'test_user_3',
+        user_name: 'rodolf',
+        user_email: 'rodolf@example.com',
+        platform: 'AdGateMedia',
+        points: 473,
+        level: 38,
+        country: 'CA',
+        profile_picture: 'https://ui-avatars.io/api/?name=rodolf&background=8A2BE2'
+      },
+      {
+        user_id: 'test_user_4',
+        user_name: 'oyrtert',
+        user_email: 'oyrtert@example.com',
+        platform: 'MM Wall',
+        points: 225,
+        level: 32,
+        country: 'AU',
+        profile_picture: 'https://ui-avatars.io/api/?name=oyrtert&background=FFD700'
+      },
+      {
+        user_id: 'test_user_5',
+        user_name: 'exigible',
+        user_email: 'exigible@example.com',
+        platform: 'MyChips',
+        points: 262,
+        level: 28,
+        country: 'DE',
+        profile_picture: 'https://ui-avatars.io/api/?name=exigible&background=FF69B4'
+      }
+    ];
+
+    // Simulate multiple postbacks
+    for (const user of testUsers) {
+      // Create a mock request object
+      const mockReq = {
+        method: 'POST',
+        query: {},
+        body: user,
+        headers: { 'user-agent': 'Test-Agent/1.0' },
+        ip: `192.168.1.${Math.floor(Math.random() * 255)}`
+      };
+
+      // Simulate the postback processing
+      const partnerId = 'test-partner';
+      const partnerInfo = { name: user.platform };
+      
+      const userData = {
+        userId: user.user_id,
+        userName: user.user_name,
+        userEmail: user.user_email,
+        platform: user.platform,
+        points: user.points,
+        profilePicture: user.profile_picture,
+        level: user.level,
+        country: user.country
+      };
+      
+      const requestData = {
+        id: uuidv4(),
+        method: 'POST',
+        receivedAt: new Date().toISOString(),
+        partnerId: partnerId,
+        partnerName: user.platform,
+        userData: userData,
+        query: {},
+        headers: mockReq.headers,
+        ip: mockReq.ip,
+        body: user
+      };
+
+      // Save postback
+      const postbacks = await loadPostbacks();
+      postbacks.push(requestData);
+      await savePostbacks(postbacks);
+
+      // Update leaderboard
+      const leaderboard = await loadLeaderboard();
+      const existingUserIndex = leaderboard.findIndex(u => u.userId === userData.userId);
+      
+      if (existingUserIndex !== -1) {
+        leaderboard[existingUserIndex].points += userData.points;
+        leaderboard[existingUserIndex].lastActivity = new Date().toISOString();
+        leaderboard[existingUserIndex].totalEarnings += userData.points;
+        leaderboard[existingUserIndex].completedTasks += 1;
+        if (userData.level) leaderboard[existingUserIndex].level = Math.max(leaderboard[existingUserIndex].level, userData.level);
+      } else {
+        leaderboard.push({
+          userId: userData.userId,
+          userName: userData.userName,
+          userEmail: userData.userEmail,
+          platform: userData.platform,
+          points: userData.points,
+          totalEarnings: userData.points,
+          completedTasks: 1,
+          level: userData.level || 1,
+          profilePicture: userData.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(userData.userName)}&background=random`,
+          country: userData.country,
+          joinedAt: new Date().toISOString(),
+          lastActivity: new Date().toISOString(),
+          rank: 0
+        });
+      }
+      
+      // Sort leaderboard by points and update ranks
+      leaderboard.sort((a, b) => b.points - a.points);
+      leaderboard.forEach((user, index) => {
+        user.rank = index + 1;
+      });
+      
+      await saveLeaderboard(leaderboard);
+    }
+
+    res.json({ 
+      success: true, 
+      message: 'Test postback data created successfully',
+      usersCreated: testUsers.length
+    });
+  } catch (error) {
+    console.error('Error creating test postback data:', error);
+    res.status(500).json({ error: 'Failed to create test data' });
+  }
 });
 
 // Partner Management Endpoints

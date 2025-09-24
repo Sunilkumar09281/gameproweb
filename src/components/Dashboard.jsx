@@ -7,6 +7,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import axios from "axios";
 import PostbackDocumentation from './PostbackDocumentation';
 import PartnerManagement from './PartnerManagement';
+import PostbackLogs from './PostbackLogs';
 import SurveyProvider from './SurveyProvider';
 import SurveyLink from './SurveyLink';
 import { API_ENDPOINTS } from '../config/api';
@@ -1455,6 +1456,8 @@ setSessions(arr);
         return <PostbackDocumentation />;
       case 'partner-management':
         return <PartnerManagement />;
+      case 'postback-logs':
+        return <PostbackLogs />;
       case 'postback-tester':
         return (
           <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
@@ -1959,6 +1962,9 @@ setSessions(arr);
         </li>
         <li className={currentView === 'partner-management' ? 'active' : ''} onClick={() => handleNavigationClick('partner-management')}>
             Partner Management
+        </li>
+        <li className={currentView === 'postback-logs' ? 'active' : ''} onClick={() => handleNavigationClick('postback-logs')}>
+            Postback Activity Logs
         </li>
           <li className={currentView === 'postback-tester' ? 'active' : ''} onClick={() => handleNavigationClick('postback-tester')}>
             Postback URL Tester

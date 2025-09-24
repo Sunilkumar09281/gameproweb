@@ -18,5 +18,15 @@
     "lastPostbackAt": null,
     "postbackUrl": "http://localhost:5000/api/receive-postback?partner_id=8e270c99-5e2f-487d-8766-fbc5d056607e",
     "status": "active"
+  },
+  {
+    "id": "634f38f7-df28-4ace-8062-a4aa2c8a7098",
+    "name": "pepperads",
+    "description": "",
+    "createdAt": "2025-09-24T05:34:43.344Z",
+    "totalPostbacks": 0,
+    "lastPostbackAt": null,
+    "postbackUrl": "http://localhost:5000/api/receive-postback?partner_id=634f38f7-df28-4ace-8062-a4aa2c8a7098",
+    "status": "active"
   }
 ]
