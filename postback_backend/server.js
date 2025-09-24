@@ -1,14 +1,15 @@
 const express = require('express');
 const cors = require('cors');
-const bodyParser = require('body-parser');
-const fetch = require('node-fetch');
-const axios = require('axios');
-const nodemailer = require('nodemailer');
+const fs = require('fs').promises;
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const axios = require('axios');
+const bodyParser = require('body-parser');
+const { connectDB, User, Postback, Partner, SurveyProvider, Survey } = require('./database');
 const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
-const fs = require('fs').promises;
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -21,10 +22,12 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({ storage: storage });
-const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Connect to MongoDB
+connectDB();
 
 // File paths
 const postbacksFile = path.join(__dirname, 'postbacks.json');
@@ -284,8 +287,11 @@ const corsOptions = {
 };
 
 app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve static files (for the MongoDB dashboard)
+app.use(express.static(__dirname));
 app.use('/uploads', express.static('uploads'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -454,165 +460,195 @@ async function saveLeaderboard(leaderboard) {
   await fs.writeFile(leaderboardFile, JSON.stringify(leaderboard, null, 2));
 }
 
-// Endpoint to receive postbacks (both GET and POST) with partner tracking
+// Endpoint to receive postbacks (both GET and POST) with MongoDB integration
 app.all('/api/receive-postback', async (req, res) => {
-  const partnerId = req.query.partner_id || req.body?.partner_id || 'unknown';
-  
-  // Find partner info if partner_id is provided
-  let partnerInfo = null;
-  if (partnerId !== 'unknown') {
-    const partners = await loadPartners();
-    partnerInfo = partners.find(p => p.id === partnerId);
-  }
-  
-  // Extract user data from postback with flexible field mapping
-  const userData = {
-    userId: req.query.user_id || req.body?.user_id || req.query.uid || req.body?.uid || 
-            req.query.id || req.body?.id || req.body?.name || req.query.name, // Use name as fallback ID
-    userName: req.query.user_name || req.body?.user_name || req.query.name || req.body?.name ||
-              req.query.username || req.body?.username,
-    userEmail: req.query.user_email || req.body?.user_email || req.query.email || req.body?.email,
-    platform: req.query.platform || req.body?.platform || partnerInfo?.name || 'Unknown Platform',
-    points: parseFloat(req.query.points || req.body?.points || req.query.amount || req.body?.amount || 
-                      req.query.reward || req.body?.reward || 0),
-    profilePicture: req.query.profile_picture || req.body?.profile_picture || 
-                   req.query.avatar || req.body?.avatar ||
-                   req.query.profile || req.body?.profile ||
-                   req.query.image || req.body?.image,
-    level: parseInt(req.query.level || req.body?.level || 1),
-    country: req.query.country || req.body?.country || 'Unknown'
-  };
-  
-  const requestData = {
-    id: uuidv4(), // Unique ID for this postback
-    method: req.method,
-    receivedAt: new Date().toISOString(),
-    partnerId: partnerId,
-    partnerName: partnerInfo?.name || 'Unknown Partner',
-    userData: userData, // Store structured user data
-    query: req.query,  // Always include query parameters
-    headers: req.headers,
-    ip: req.ip,
-  };
-
-  // For POST/PUT/PATCH with body
-  if (['POST', 'PUT', 'PATCH'].includes(req.method) && Object.keys(req.body).length > 0) {
-    requestData.body = req.body;
-  }
-  // For GET/DELETE or when no body is present
-  else if (Object.keys(req.query).length > 0) {
-    requestData.body = req.query;
-  }
-  
-  const postbacks = await loadPostbacks();
-  postbacks.push(requestData);
-  await savePostbacks(postbacks);
-  
-  // Debug logging
-  console.log('Received postback with data:', {
-    method: req.method,
-    query: req.query,
-    body: req.body,
-    extractedUserData: userData
-  });
-
-  // Update leaderboard if we have user data
-  if (userData.userId && userData.userName && userData.points > 0) {
-    console.log('Adding user to leaderboard:', userData);
-    const leaderboard = await loadLeaderboard();
-    const existingUserIndex = leaderboard.findIndex(u => u.userId === userData.userId);
+  try {
+    const partnerId = req.query.partner_id || req.body?.partner_id || 'unknown';
     
-    if (existingUserIndex !== -1) {
-      // Update existing user
-      leaderboard[existingUserIndex].points += userData.points;
-      leaderboard[existingUserIndex].lastActivity = new Date().toISOString();
-      leaderboard[existingUserIndex].totalEarnings += userData.points;
-      leaderboard[existingUserIndex].completedTasks += 1;
-      if (userData.level) leaderboard[existingUserIndex].level = Math.max(leaderboard[existingUserIndex].level, userData.level);
-    } else {
-      // Add new user
-      leaderboard.push({
-        userId: userData.userId,
-        userName: userData.userName,
-        userEmail: userData.userEmail,
-        platform: userData.platform,
-        points: userData.points,
-        totalEarnings: userData.points,
-        completedTasks: 1,
-        level: userData.level || 1,
-        profilePicture: userData.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(userData.userName)}&background=random`,
-        country: userData.country,
-        joinedAt: new Date().toISOString(),
-        lastActivity: new Date().toISOString(),
-        rank: 0 // Will be calculated when fetching leaderboard
-      });
+    // Find partner info if partner_id is provided
+    let partnerInfo = null;
+    if (partnerId !== 'unknown') {
+      partnerInfo = await Partner.findOne({ partnerId: partnerId });
     }
     
-    // Sort leaderboard by points and update ranks
-    leaderboard.sort((a, b) => b.points - a.points);
-    leaderboard.forEach((user, index) => {
-      user.rank = index + 1;
+    // Extract user data from postback with flexible field mapping
+    const userData = {
+      userId: req.query.user_id || req.body?.user_id || req.query.uid || req.body?.uid || 
+              req.query.id || req.body?.id || req.body?.name || req.query.name, // Use name as fallback ID
+      userName: req.query.user_name || req.body?.user_name || req.query.name || req.body?.name ||
+                req.query.username || req.body?.username,
+      userEmail: req.query.user_email || req.body?.user_email || req.query.email || req.body?.email,
+      platform: req.query.platform || req.body?.platform || partnerInfo?.name || 'Unknown Platform',
+      points: parseFloat(req.query.points || req.body?.points || req.query.amount || req.body?.amount || 
+                        req.query.reward || req.body?.reward || 0),
+      profilePicture: req.query.profile_picture || req.body?.profile_picture || 
+                     req.query.avatar || req.body?.avatar ||
+                     req.query.profile || req.body?.profile ||
+                     req.query.image || req.body?.image,
+      level: parseInt(req.query.level || req.body?.level || 1),
+      country: req.query.country || req.body?.country || 'Unknown'
+    };
+    
+    const postbackId = uuidv4();
+    
+    // Save postback to MongoDB
+    const postback = new Postback({
+      postbackId: postbackId,
+      method: req.method,
+      partnerId: partnerId,
+      partnerName: partnerInfo?.name || 'Unknown Partner',
+      userData: userData,
+      query: req.query,
+      body: req.body,
+      headers: req.headers,
+      ip: req.ip,
+      receivedAt: new Date()
     });
     
-    await saveLeaderboard(leaderboard);
-  }
-  
-  // Update partner stats if partner exists
-  if (partnerInfo) {
-    const partners = await loadPartners();
-    const partnerIndex = partners.findIndex(p => p.id === partnerId);
-    if (partnerIndex !== -1) {
-      partners[partnerIndex].totalPostbacks = (partners[partnerIndex].totalPostbacks || 0) + 1;
-      partners[partnerIndex].lastPostbackAt = new Date().toISOString();
-      await savePartners(partners);
+    await postback.save();
+    
+    // Debug logging
+    console.log('Received postback with data:', {
+      method: req.method,
+      query: req.query,
+      body: req.body,
+      extractedUserData: userData
+    });
+
+    // Update leaderboard if we have user data
+    if (userData.userId && userData.userName && userData.points > 0) {
+      console.log('Adding user to leaderboard:', userData);
+      
+      // Find existing user or create new one
+      let user = await User.findOne({ userId: userData.userId });
+      
+      if (user) {
+        // Update existing user
+        user.points += userData.points;
+        user.totalEarnings += userData.points;
+        user.completedTasks += 1;
+        user.lastActivity = new Date();
+        if (userData.level) user.level = Math.max(user.level, userData.level);
+        if (userData.profilePicture) user.profilePicture = userData.profilePicture;
+        if (userData.userEmail) user.userEmail = userData.userEmail;
+        if (userData.country && userData.country !== 'Unknown') user.country = userData.country;
+        
+        await user.save();
+      } else {
+        // Create new user
+        user = new User({
+          userId: userData.userId,
+          userName: userData.userName,
+          userEmail: userData.userEmail,
+          platform: userData.platform,
+          points: userData.points,
+          totalEarnings: userData.points,
+          completedTasks: 1,
+          level: userData.level || 1,
+          profilePicture: userData.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(userData.userName)}&background=random`,
+          country: userData.country,
+          joinedAt: new Date(),
+          lastActivity: new Date()
+        });
+        
+        await user.save();
+      }
+      
+      // Update ranks for all users
+      await updateUserRanks();
     }
+    
+    // Update partner stats if partner exists
+    if (partnerInfo) {
+      partnerInfo.totalPostbacks = (partnerInfo.totalPostbacks || 0) + 1;
+      partnerInfo.lastPostbackAt = new Date();
+      await partnerInfo.save();
+    }
+    
+    // Return a simple response
+    res.status(200).json({ 
+      success: true, 
+      message: 'Postback received', 
+      method: req.method,
+      partnerId: partnerId,
+      partnerName: partnerInfo?.name || 'Unknown Partner',
+      postbackId: postbackId,
+      userData: userData
+    });
+    
+  } catch (error) {
+    console.error('Error processing postback:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to process postback',
+      message: error.message
+    });
   }
-  
-  // Return a simple response
-  res.status(200).json({ 
-    success: true, 
-    message: 'Postback received', 
-    method: req.method,
-    partnerId: partnerId,
-    partnerName: requestData.partnerName,
-    postbackId: requestData.id,
-    userData: userData,
-    data: requestData 
-  });
 });
 
-// Endpoint to get all received postbacks
+// Helper function to update user ranks
+async function updateUserRanks() {
+  try {
+    const users = await User.find({}).sort({ points: -1 });
+    
+    for (let i = 0; i < users.length; i++) {
+      users[i].rank = i + 1;
+      await users[i].save();
+    }
+  } catch (error) {
+    console.error('Error updating user ranks:', error);
+  }
+}
+
+// Endpoint to get all received postbacks from MongoDB
 app.get('/api/received-postbacks', async (req, res) => {
-  const postbacks = await loadPostbacks();
-  res.json(postbacks);
+  try {
+    const postbacks = await Postback.find({})
+      .sort({ receivedAt: -1 })
+      .lean();
+    res.json(postbacks);
+  } catch (error) {
+    console.error('Error fetching postbacks:', error);
+    res.status(500).json({ error: 'Failed to fetch postbacks' });
+  }
 });
 
-// Optional: clear postbacks
+// Optional: clear postbacks - MongoDB version
 app.delete('/api/received-postbacks', async (req, res) => {
-  await savePostbacks([]);
-  res.json({ message: 'All postbacks cleared' });
+  try {
+    await Postback.deleteMany({});
+    res.json({ message: 'All postbacks cleared' });
+  } catch (error) {
+    console.error('Error clearing postbacks:', error);
+    res.status(500).json({ error: 'Failed to clear postbacks' });
+  }
 });
 
 // Leaderboard API endpoints
 
-// Get leaderboard data
+// Get leaderboard data from MongoDB
 app.get('/api/leaderboard', async (req, res) => {
   try {
     const { limit = 50, offset = 0 } = req.query;
-    const leaderboard = await loadLeaderboard();
     
-    // Sort by points and update ranks
-    leaderboard.sort((a, b) => b.points - a.points);
-    leaderboard.forEach((user, index) => {
-      user.rank = index + 1;
-    });
+    // Get users sorted by points (descending)
+    const totalUsers = await User.countDocuments();
+    const users = await User.find({})
+      .sort({ points: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .lean();
     
-    const paginatedData = leaderboard.slice(parseInt(offset), parseInt(offset) + parseInt(limit));
+    // Get top 10 users for home page display
+    const topUsers = await User.find({})
+      .sort({ points: -1 })
+      .limit(10)
+      .lean();
     
     res.json({
-      total: leaderboard.length,
-      leaderboard: paginatedData,
-      topUsers: leaderboard.slice(0, 10) // Always return top 10 for home page display
+      total: totalUsers,
+      leaderboard: users,
+      topUsers: topUsers
     });
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
@@ -645,10 +681,10 @@ app.get('/api/leaderboard/user/:userId', async (req, res) => {
   }
 });
 
-// Clear leaderboard (admin only)
+// Clear leaderboard (admin only) - MongoDB version
 app.delete('/api/leaderboard', async (req, res) => {
   try {
-    await saveLeaderboard([]);
+    await User.deleteMany({});
     res.json({ message: 'Leaderboard cleared successfully' });
   } catch (error) {
     console.error('Error clearing leaderboard:', error);
@@ -656,7 +692,52 @@ app.delete('/api/leaderboard', async (req, res) => {
   }
 });
 
-// Quick test endpoint with your exact data
+// MongoDB Statistics Dashboard
+app.get('/api/mongodb-stats', async (req, res) => {
+  try {
+    const userCount = await User.countDocuments();
+    const postbackCount = await Postback.countDocuments();
+    const partnerCount = await Partner.countDocuments();
+    
+    const topUsers = await User.find({}).sort({ points: -1 }).limit(5);
+    const recentPostbacks = await Postback.find({}).sort({ receivedAt: -1 }).limit(5);
+    
+    const totalPoints = await User.aggregate([
+      { $group: { _id: null, total: { $sum: "$points" } } }
+    ]);
+
+    res.json({
+      success: true,
+      database: 'MongoDB Atlas',
+      collections: {
+        users: userCount,
+        postbacks: postbackCount,
+        partners: partnerCount
+      },
+      statistics: {
+        totalPoints: totalPoints[0]?.total || 0,
+        averagePointsPerUser: userCount > 0 ? Math.round((totalPoints[0]?.total || 0) / userCount) : 0
+      },
+      topUsers: topUsers.map(user => ({
+        userName: user.userName,
+        points: user.points,
+        completedTasks: user.completedTasks,
+        rank: user.rank
+      })),
+      recentActivity: recentPostbacks.map(pb => ({
+        user: pb.userData?.userName || 'Unknown',
+        points: pb.userData?.points || 0,
+        platform: pb.partnerName,
+        receivedAt: pb.receivedAt
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching MongoDB stats:', error);
+    res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+// Quick test endpoint with your exact data - MongoDB version
 app.post('/api/test-aahan', async (req, res) => {
   try {
     const testData = {
@@ -666,15 +747,22 @@ app.post('/api/test-aahan', async (req, res) => {
     };
 
     // Simulate the postback by calling our own endpoint
-    const response = await fetch('http://localhost:5000/api/receive-postback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(testData)
+    const axios = require('axios');
+    const response = await axios.post('http://localhost:5000/api/receive-postback', testData, {
+      headers: { 'Content-Type': 'application/json' }
     });
 
-    const result = await response.json();
-    res.json({ success: true, message: 'Test completed', result });
+    // Also get the current leaderboard to show the result
+    const leaderboard = await User.find({}).sort({ points: -1 }).limit(10);
+    
+    res.json({ 
+      success: true, 
+      message: 'Test completed with MongoDB', 
+      postbackResult: response.data,
+      currentLeaderboard: leaderboard
+    });
   } catch (error) {
+    console.error('Test error:', error);
     res.status(500).json({ error: error.message });
   }
 });
