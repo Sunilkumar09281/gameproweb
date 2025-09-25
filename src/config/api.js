@@ -3,42 +3,30 @@
 const getBackendUrl = () => {
   // If explicitly set in environment variables, use that
   if (process.env.REACT_APP_BACKEND_URL) {
+    console.log('🔧 Using REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
     return process.env.REACT_APP_BACKEND_URL;
+  }
+
+  if (process.env.REACT_APP_API_URL) {
+    console.log('🔧 Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
+    return process.env.REACT_APP_API_URL;
   }
 
   // Auto-detect based on current environment
   const currentHost = window.location.hostname;
   const currentProtocol = window.location.protocol;
   
+  console.log('🔧 Auto-detecting API URL. Current host:', currentHost);
+  
   // Development environments
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
+    console.log('🔧 Development environment detected');
     return 'http://localhost:5000';
   }
   
-  // Production environments - try to guess backend URL
-  if (currentHost.includes('onrender.com')) {
-    // If frontend is on Render, backend is likely on Render too
-    // Based on your Render service, the backend should be at gamepro service
-    return 'https://gameproback.onrender.com'; // Update this with your actual backend URL
-  }
-  
-  if (currentHost.includes('gamepro.pw')) {
-    // Custom domain frontend
-    return 'https://gameproback.onrender.com'; // Your backend URL
-  }
-  
-  if (currentHost.includes('netlify.app')) {
-    // Netlify frontend, backend might be on Render or Heroku
-    return 'https://gameproback.onrender.com'; // Update with your actual backend URL
-  }
-  
-  if (currentHost.includes('vercel.app')) {
-    // Vercel frontend, backend might be elsewhere
-    return 'https://gameproback.onrender.com'; // Update with your actual backend URL
-  }
-  
-  // Default fallback
-  return 'http://localhost:5000';
+  // Production environments - ALWAYS use the correct backend URL
+  console.log('🔧 Production environment detected, using gameproback.onrender.com');
+  return 'https://gameproback.onrender.com';
 };
 
 export const API_BASE_URL = getBackendUrl();
