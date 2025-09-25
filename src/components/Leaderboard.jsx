@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import UserCard from './UserCard';
 import './Leaderboard.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_ENDPOINTS } from '../config/api';
 
 const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) => {
   const [leaderboardData, setLeaderboardData] = useState([]);
@@ -13,7 +12,7 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/leaderboard?limit=${maxUsers}`);
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/leaderboard?limit=${maxUsers}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch leaderboard data: ${response.status} ${response.statusText}`);

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_ENDPOINTS } from '../config/api';
 
 const LeaderboardDebug = () => {
   const [debugData, setDebugData] = useState(null);
@@ -9,9 +8,9 @@ const LeaderboardDebug = () => {
   const fetchDebugData = async () => {
     setLoading(true);
     try {
-      console.log('🔍 Fetching from:', `${API_BASE_URL}/api/leaderboard`);
+      console.log('🔍 Fetching from:', `${API_ENDPOINTS.API_BASE_URL}/api/leaderboard`);
       
-      const response = await fetch(`${API_BASE_URL}/api/leaderboard`);
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/leaderboard`);
       console.log('📡 Response status:', response.status);
       
       const data = await response.json();
@@ -54,7 +53,7 @@ const LeaderboardDebug = () => {
       fontFamily: 'monospace'
     }}>
       <h3>🐛 Leaderboard Debug</h3>
-      <p><strong>API URL:</strong> {API_BASE_URL}</p>
+      <p><strong>API URL:</strong> {API_ENDPOINTS.API_BASE_URL}</p>
       
       <button 
         onClick={fetchDebugData}

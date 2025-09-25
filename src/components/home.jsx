@@ -14,8 +14,7 @@ import LeaderboardDebug from './LeaderboardDebug.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
-// inside home.jsx
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_ENDPOINTS } from '../config/api';
 // paste/replace the existing handleGameClick in src/components/home.jsx
 const handleGameClick = async (game) => {
   try {
@@ -35,9 +34,9 @@ const handleGameClick = async (game) => {
     };
 
     // Use environment variable instead of hardcoded localhost
-    console.log('Tracking to:', `${API_BASE_URL}/api/track-click`);
+    console.log('Tracking to:', `${API_ENDPOINTS.API_BASE_URL}/api/track-click`);
     
-    fetch(`${API_BASE_URL}/api/track-click`, {
+    fetch(`${API_ENDPOINTS.API_BASE_URL}/api/track-click`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -1507,7 +1506,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
   const fetchSurveys = async () => {
     setLoadingSurveys(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/surveys/active`);
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/surveys/active`);
       if (!response.ok) throw new Error('Failed to fetch surveys');
       const data = await response.json();
       setSurveys(data);
@@ -1544,7 +1543,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
 const fetchAddedOffers = async () => {
   setLoadingAddedOffers(true);
   try {
-    const url = `${API_BASE_URL}/api/games`; // Use environment variable
+    const url = `${API_ENDPOINTS.API_BASE_URL}/api/games`; // Use environment variable
     const res = await fetch(url, { 
       credentials: 'include',
       headers: {

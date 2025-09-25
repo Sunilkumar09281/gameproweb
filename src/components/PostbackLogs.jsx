@@ -100,7 +100,7 @@ const PostbackLogs = () => {
   const clearAllPostbacks = async () => {
     if (window.confirm('Are you sure you want to clear all postback logs? This action cannot be undone.')) {
       try {
-        const response = await fetch(`${API_BASE_URL}/api/received-postbacks`, {
+        const response = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS, {
           method: 'DELETE'
         });
         
