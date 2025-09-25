@@ -10,6 +10,7 @@ import ReferEarnPage from './refer.jsx';
 import Footer from './Footer.jsx'; // adjust the path if needed
 import DashboardPage from './Dashboard.jsx';
 import Leaderboard from './Leaderboard.jsx';
+import LeaderboardDebug from './LeaderboardDebug.jsx';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
@@ -1783,6 +1784,9 @@ const fetchAddedOffers = async () => {
           />
         </section>
       </main>
+
+      {/* Temporary Debug Panel */}
+      <LeaderboardDebug />
 
       {selectedItem && (
         <ItemDetailModal

@@ -67,7 +67,7 @@ const PartnerManagement = () => {
     if (!editingPartner) return;
 
     try {
-      const response = await fetch(`${API_ENDPOINTS.PARTNERS}/${editingPartner.id}`, {
+      const response = await fetch(`${API_ENDPOINTS.PARTNERS}/${editingPartner.partnerId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
@@ -79,7 +79,7 @@ const PartnerManagement = () => {
       }
 
       const result = await response.json();
-      setPartners(partners.map(p => p.id === editingPartner.id ? result.partner : p));
+      setPartners(partners.map(p => p.partnerId === editingPartner.partnerId ? result.partner : p));
       setEditingPartner(null);
       setFormData({ name: '', description: '' });
       setError('');
@@ -104,7 +104,7 @@ const PartnerManagement = () => {
         throw new Error(errorData.error || 'Failed to delete partner');
       }
 
-      setPartners(partners.filter(p => p.id !== partnerId));
+      setPartners(partners.filter(p => p.partnerId !== partnerId));
       setError('');
     } catch (err) {
       setError('Failed to delete partner: ' + err.message);
@@ -293,7 +293,7 @@ const PartnerManagement = () => {
         <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }}>
           {partners.map((partner) => (
             <div
-              key={partner.id}
+              key={partner.partnerId}
               style={{
                 background: '#1e1e2f',
                 padding: 20,
@@ -331,7 +331,7 @@ const PartnerManagement = () => {
                     Edit
                   </button>
                   <button
-                    onClick={() => handleDeletePartner(partner.id)}
+                    onClick={() => handleDeletePartner(partner.partnerId)}
                     style={{
                       background: '#f44336',
                       color: '#fff',

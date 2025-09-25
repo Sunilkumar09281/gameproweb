@@ -941,105 +941,127 @@ app.post('/api/test-postback', async (req, res) => {
 
 // Get all partners
 app.get('/api/partners', async (req, res) => {
-  const partners = await loadPartners();
-  res.json(partners);
+  try {
+    const partners = await Partner.find({}).sort({ createdAt: -1 }).lean();
+    res.json(partners);
+  } catch (error) {
+    console.error('Error fetching partners:', error);
+    res.status(500).json({ error: 'Failed to fetch partners' });
+  }
 });
 
 // Create a new partner
 app.post('/api/partners', async (req, res) => {
-  const { name, description } = req.body;
-  
-  if (!name) {
-    return res.status(400).json({ error: 'Partner name is required' });
+  try {
+    const { name, description } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: 'Partner name is required' });
+    }
+    
+    const partnerId = uuidv4();
+    const newPartner = new Partner({
+      partnerId: partnerId,
+      name: name.trim(),
+      description: description?.trim() || '',
+      createdAt: new Date(),
+      totalPostbacks: 0,
+      lastPostbackAt: null,
+      postbackUrl: `${req.protocol}://${req.get('host')}/api/receive-postback?partner_id=${partnerId}`,
+      status: 'active'
+    });
+    
+    await newPartner.save();
+    
+    res.status(201).json({
+      success: true,
+      message: 'Partner created successfully',
+      partner: newPartner
+    });
+  } catch (error) {
+    console.error('Error creating partner:', error);
+    res.status(500).json({ error: 'Failed to create partner' });
   }
-  
-  const partnerId = uuidv4();
-  const newPartner = {
-    id: partnerId,
-    name: name.trim(),
-    description: description?.trim() || '',
-    createdAt: new Date().toISOString(),
-    totalPostbacks: 0,
-    lastPostbackAt: null,
-    postbackUrl: `${req.protocol}://${req.get('host')}/api/receive-postback?partner_id=${partnerId}`,
-    status: 'active'
-  };
-  
-  const partners = await loadPartners();
-  partners.push(newPartner);
-  await savePartners(partners);
-  
-  res.status(201).json({
-    success: true,
-    message: 'Partner created successfully',
-    partner: newPartner
-  });
 });
 
 // Update a partner
 app.put('/api/partners/:id', async (req, res) => {
-  const { id } = req.params;
-  const { name, description, status } = req.body;
-  
-  const partners = await loadPartners();
-  const partnerIndex = partners.findIndex(p => p.id === id);
-  
-  if (partnerIndex === -1) {
-    return res.status(404).json({ error: 'Partner not found' });
+  try {
+    const { id } = req.params;
+    const { name, description, status } = req.body;
+    
+    const partner = await Partner.findOne({ partnerId: id });
+    
+    if (!partner) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    if (name) partner.name = name.trim();
+    if (description !== undefined) partner.description = description.trim();
+    if (status) partner.status = status;
+    
+    partner.updatedAt = new Date();
+    
+    await partner.save();
+    
+    res.json({
+      success: true,
+      message: 'Partner updated successfully',
+      partner: partner
+    });
+  } catch (error) {
+    console.error('Error updating partner:', error);
+    res.status(500).json({ error: 'Failed to update partner' });
   }
-  
-  if (name) partners[partnerIndex].name = name.trim();
-  if (description !== undefined) partners[partnerIndex].description = description.trim();
-  if (status) partners[partnerIndex].status = status;
-  
-  partners[partnerIndex].updatedAt = new Date().toISOString();
-  
-  await savePartners(partners);
-  
-  res.json({
-    success: true,
-    message: 'Partner updated successfully',
-    partner: partners[partnerIndex]
-  });
 });
 
 // Delete a partner
 app.delete('/api/partners/:id', async (req, res) => {
-  const { id } = req.params;
-  
-  const partners = await loadPartners();
-  const partnerIndex = partners.findIndex(p => p.id === id);
-  
-  if (partnerIndex === -1) {
-    return res.status(404).json({ error: 'Partner not found' });
+  try {
+    const { id } = req.params;
+    
+    const partner = await Partner.findOne({ partnerId: id });
+    
+    if (!partner) {
+      return res.status(404).json({ error: 'Partner not found' });
+    }
+    
+    await Partner.deleteOne({ partnerId: id });
+    
+    res.json({
+      success: true,
+      message: 'Partner deleted successfully',
+      partner: partner
+    });
+  } catch (error) {
+    console.error('Error deleting partner:', error);
+    res.status(500).json({ error: 'Failed to delete partner' });
   }
-  
-  const deletedPartner = partners.splice(partnerIndex, 1)[0];
-  await savePartners(partners);
-  
-  res.json({
-    success: true,
-    message: 'Partner deleted successfully',
-    partner: deletedPartner
-  });
 });
 
 // Get postbacks for a specific partner
 app.get('/api/partners/:id/postbacks', async (req, res) => {
-  const { id } = req.params;
-  const { limit = 100, offset = 0 } = req.query;
-  
-  const postbacks = await loadPostbacks();
-  const partnerPostbacks = postbacks
-    .filter(p => p.partnerId === id)
-    .sort((a, b) => new Date(b.receivedAt) - new Date(a.receivedAt))
-    .slice(parseInt(offset), parseInt(offset) + parseInt(limit));
-  
-  res.json({
-    partnerId: id,
-    total: postbacks.filter(p => p.partnerId === id).length,
-    postbacks: partnerPostbacks
-  });
+  try {
+    const { id } = req.params;
+    const { limit = 100, offset = 0 } = req.query;
+    
+    const postbacks = await Postback.find({ partnerId: id })
+      .sort({ receivedAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .lean();
+    
+    const total = await Postback.countDocuments({ partnerId: id });
+    
+    res.json({
+      partnerId: id,
+      total: total,
+      postbacks: postbacks
+    });
+  } catch (error) {
+    console.error('Error fetching partner postbacks:', error);
+    res.status(500).json({ error: 'Failed to fetch partner postbacks' });
+  }
 });
 
 // Get all games

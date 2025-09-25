@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './PostbackLogs.css';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+import { API_ENDPOINTS } from '../config/api';
 
 const PostbackLogs = () => {
   const [postbacks, setPostbacks] = useState([]);
@@ -15,7 +14,7 @@ const PostbackLogs = () => {
   const fetchPostbacks = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/api/received-postbacks`);
+      const response = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS);
       
       if (!response.ok) {
         throw new Error('Failed to fetch postback logs');
