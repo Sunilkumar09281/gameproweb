@@ -12,16 +12,19 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
   const fetchLeaderboard = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/leaderboard?limit=${maxUsers}`);
+      console.log('🔍 Fetching user data from:', `${API_ENDPOINTS.API_BASE_URL}/api/user-data?limit=${maxUsers}`);
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/user-data?limit=${maxUsers}`);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch leaderboard data: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      const users = data.topUsers || data.leaderboard || [];
+      console.log('📊 User data received:', data);
+      const users = data.users || [];
       
       setLeaderboardData(users);
+      console.log('✅ Leaderboard updated with', users.length, 'users');
       setLastUpdate(new Date().toISOString());
       setError(null);
     } catch (err) {

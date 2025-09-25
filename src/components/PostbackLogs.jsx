@@ -14,6 +14,7 @@ const PostbackLogs = () => {
   const fetchPostbacks = async () => {
     try {
       setLoading(true);
+      console.log('🔍 Fetching postbacks from:', API_ENDPOINTS.RECEIVED_POSTBACKS);
       const response = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS);
       
       if (!response.ok) {
@@ -21,10 +22,12 @@ const PostbackLogs = () => {
       }
       
       const data = await response.json();
+      console.log('📊 Postbacks received:', data);
       setPostbacks(data.reverse()); // Show newest first
       setError(null);
+      console.log('✅ PostbackLogs updated with', data.length, 'postbacks');
     } catch (err) {
-      console.error('Error fetching postbacks:', err);
+      console.error('❌ Error fetching postbacks:', err);
       setError(err.message);
     } finally {
       setLoading(false);

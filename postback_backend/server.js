@@ -1,16 +1,14 @@
 const express = require('express');
-const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const axios = require('axios');
 const bodyParser = require('body-parser');
-const { connectDB, User, Postback, Partner, SurveyProvider, Survey } = require('./database');
+const { connectDB, User, Postback, Partner, UserData } = require('./database');
 const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
-
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -587,6 +585,22 @@ app.all('/api/receive-postback', async (req, res) => {
       console.log('[SUCCESS] Partner stats updated.');
     }
     
+    // Save to UserData collection for home page display
+    try {
+      console.log('[DEBUG] Saving to UserData collection for home page...');
+      const userDataEntry = new UserData({
+        name: userData.userName || req.query.name || req.body?.name || 'Unknown User',
+        profile: userData.profilePicture || req.query.profile || req.body?.profile || '',
+        platform: userData.platform || req.query.platform || req.body?.platform || 'Unknown Platform',
+        points: parseInt(userData.points) || parseInt(req.query.points) || parseInt(req.body?.points) || 0
+      });
+      
+      await userDataEntry.save();
+      console.log('[SUCCESS] UserData saved for home page display:', userDataEntry);
+    } catch (userDataError) {
+      console.error('[ERROR] Failed to save UserData:', userDataError);
+    }
+    
     // Return a simple response
     console.log('[SUCCESS] Sending 200 OK response to client.');
     res.status(200).json({ 
@@ -643,6 +657,43 @@ app.delete('/api/received-postbacks', async (req, res) => {
   } catch (error) {
     console.error('Error clearing postbacks:', error);
     res.status(500).json({ error: 'Failed to clear postbacks' });
+  }
+});
+
+// UserData API endpoints for home page display
+
+// Get recent user data for home page cards
+app.get('/api/user-data', async (req, res) => {
+  try {
+    const { limit = 10 } = req.query;
+    
+    // Get recent user data sorted by creation date (newest first)
+    const userData = await UserData.find({})
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .lean();
+    
+    // Transform data to match UserCard component expectations
+    const transformedData = userData.map((user, index) => ({
+      userId: user._id,
+      userName: user.name,
+      profilePicture: user.profile,
+      platform: user.platform,
+      points: user.points,
+      level: Math.floor(user.points / 100) + 1, // Calculate level based on points
+      completedTasks: Math.floor(user.points / 50), // Calculate tasks based on points
+      country: 'Unknown',
+      rank: index + 1
+    }));
+    
+    res.json({
+      success: true,
+      total: userData.length,
+      users: transformedData
+    });
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    res.status(500).json({ error: 'Failed to fetch user data' });
   }
 });
 

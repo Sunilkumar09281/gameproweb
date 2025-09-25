@@ -100,17 +100,31 @@ const surveySchema = new mongoose.Schema({
 });
 
 // Create Models
-const User = mongoose.model('User', userSchema);
 const Postback = mongoose.model('Postback', postbackSchema);
 const Partner = mongoose.model('Partner', partnerSchema);
 const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
 const Survey = mongoose.model('Survey', surveySchema);
 
+// UserData Schema - Simplified for home page display
+const userDataSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  profile: { type: String, default: '' },
+  platform: { type: String, required: true },
+  points: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
+});
+
+const UserData = mongoose.model('UserData', userDataSchema);
+
+// Export models
 module.exports = {
-  connectDB,
   User,
   Postback,
   Partner,
+  UserData,
   SurveyProvider,
   Survey
 };
