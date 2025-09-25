@@ -288,6 +288,9 @@ app.use(cors(corsOptions));
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
+// Trust proxy for accurate IP detection
+app.set('trust proxy', true);
+
 // Serve static files (for the MongoDB dashboard)
 app.use(express.static(__dirname));
 app.use('/uploads', express.static('uploads'));
@@ -588,17 +591,90 @@ app.all('/api/receive-postback', async (req, res) => {
     // Save to UserData collection for home page display
     try {
       console.log('[DEBUG] Saving to UserData collection for home page...');
+      
+      // Enhanced IP address extraction
+      const getClientIP = (req) => {
+        return req.headers['x-forwarded-for']?.split(',')[0] || 
+               req.headers['x-real-ip'] || 
+               req.headers['x-client-ip'] || 
+               req.connection.remoteAddress || 
+               req.socket.remoteAddress ||
+               (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+               req.ip || 
+               'Unknown';
+      };
+
+      // Enhanced country detection from IP or headers
+      const getCountry = async (req, ip) => {
+        // Check query/body parameters first
+        const countryFromParams = req.query.country || req.body?.country || 
+                                 req.query.geo_country || req.body?.geo_country ||
+                                 req.query.user_country || req.body?.user_country;
+        
+        if (countryFromParams) return countryFromParams;
+        
+        // Check headers for country info
+        const countryFromHeaders = req.headers['cf-ipcountry'] || // Cloudflare
+                                  req.headers['x-country-code'] || // Some proxies
+                                  req.headers['geoip-country-code']; // GeoIP headers
+        
+        if (countryFromHeaders) return countryFromHeaders;
+        
+        // Try to get country from IP using free geolocation service
+        if (ip && ip !== 'Unknown' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && ip !== '127.0.0.1') {
+          try {
+            console.log('[DEBUG] Attempting IP geolocation for:', ip);
+            const geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=countryCode`, { timeout: 3000 });
+            if (geoResponse.data && geoResponse.data.countryCode) {
+              console.log('[DEBUG] IP geolocation result:', geoResponse.data.countryCode);
+              return geoResponse.data.countryCode;
+            }
+          } catch (geoError) {
+            console.log('[DEBUG] IP geolocation failed:', geoError.message);
+          }
+        }
+        
+        return 'Unknown';
+      };
+
+      // Enhanced session ID extraction
+      const getSessionId = (req) => {
+        return req.query.session_id || req.body?.session_id ||
+               req.query.sessionid || req.body?.sessionid ||
+               req.query.sid || req.body?.sid ||
+               req.query.transaction_id || req.body?.transaction_id ||
+               req.query.txn_id || req.body?.txn_id ||
+               req.headers['x-session-id'] ||
+               postbackId; // fallback to postback ID
+      };
+
+      const clientIP = getClientIP(req);
+      const country = await getCountry(req, clientIP);
+      const sessionId = getSessionId(req);
+      
+      console.log('[DEBUG] Extracted details:', {
+        ip: clientIP,
+        country: country,
+        sessionId: sessionId,
+        headers: req.headers,
+        query: req.query,
+        body: req.body
+      });
+
       const userDataEntry = new UserData({
         name: userData.userName || req.query.name || req.body?.name || 'Unknown User',
         profile: userData.profilePicture || req.query.profile || req.body?.profile || '',
         platform: userData.platform || req.query.platform || req.body?.platform || 'Unknown Platform',
         points: parseInt(userData.points) || parseInt(req.query.points) || parseInt(req.body?.points) || 0,
-        // Additional details for modal
-        ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+        // Enhanced details for modal
+        ipAddress: clientIP,
         partnerName: partnerInfo?.name || 'Unknown Partner',
-        uniqueClick: req.query.click_id || req.body?.click_id || postbackId,
-        sessionId: req.query.session_id || req.body?.session_id || postbackId,
-        country: req.query.country || req.body?.country || 'Unknown',
+        uniqueClick: req.query.click_id || req.body?.click_id || 
+                    req.query.clickid || req.body?.clickid ||
+                    req.query.unique_id || req.body?.unique_id ||
+                    postbackId,
+        sessionId: sessionId,
+        country: country,
         userAgent: req.headers['user-agent'] || 'Unknown'
       });
       
@@ -2026,6 +2102,77 @@ app.get('/', (req, res) => {
 
 app.get('/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
+});
+
+// Debug endpoint to see what data would be captured
+app.all('/api/debug-postback', async (req, res) => {
+  try {
+    // Enhanced IP address extraction
+    const getClientIP = (req) => {
+      return req.headers['x-forwarded-for']?.split(',')[0] || 
+             req.headers['x-real-ip'] || 
+             req.headers['x-client-ip'] || 
+             req.connection.remoteAddress || 
+             req.socket.remoteAddress ||
+             (req.connection.socket ? req.connection.socket.remoteAddress : null) ||
+             req.ip || 
+             'Unknown';
+    };
+
+    // Enhanced country detection
+    const getCountry = async (req, ip) => {
+      const countryFromParams = req.query.country || req.body?.country || 
+                               req.query.geo_country || req.body?.geo_country ||
+                               req.query.user_country || req.body?.user_country;
+      
+      if (countryFromParams) return countryFromParams;
+      
+      const countryFromHeaders = req.headers['cf-ipcountry'] || 
+                                req.headers['x-country-code'] || 
+                                req.headers['geoip-country-code'];
+      
+      if (countryFromHeaders) return countryFromHeaders;
+      
+      if (ip && ip !== 'Unknown' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && ip !== '127.0.0.1') {
+        try {
+          const geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=countryCode,country`, { timeout: 3000 });
+          if (geoResponse.data && geoResponse.data.countryCode) {
+            return geoResponse.data.countryCode;
+          }
+        } catch (geoError) {
+          console.log('Geolocation failed:', geoError.message);
+        }
+      }
+      
+      return 'Unknown';
+    };
+
+    const clientIP = getClientIP(req);
+    const country = await getCountry(req, clientIP);
+    
+    const debugInfo = {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      extractedData: {
+        ipAddress: clientIP,
+        country: country,
+        sessionId: req.query.session_id || req.body?.session_id || 'Not provided',
+        uniqueClick: req.query.click_id || req.body?.click_id || 'Not provided',
+        name: req.query.name || req.body?.name || 'Not provided',
+        platform: req.query.platform || req.body?.platform || 'Not provided',
+        points: req.query.points || req.body?.points || 'Not provided'
+      },
+      headers: req.headers,
+      query: req.query,
+      body: req.body,
+      rawIP: req.ip,
+      connectionIP: req.connection.remoteAddress
+    };
+
+    res.json(debugInfo);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Track click endpoint (missing endpoint causing 404)
