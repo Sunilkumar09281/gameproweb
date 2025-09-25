@@ -606,19 +606,29 @@ app.all('/api/receive-postback', async (req, res) => {
 
       // Enhanced country detection from IP or headers
       const getCountry = async (req, ip) => {
-        // Check query/body parameters first
+        // Check query/body parameters first (highest priority)
         const countryFromParams = req.query.country || req.body?.country || 
                                  req.query.geo_country || req.body?.geo_country ||
-                                 req.query.user_country || req.body?.user_country;
+                                 req.query.user_country || req.body?.user_country ||
+                                 req.query.countryCode || req.body?.countryCode ||
+                                 req.query.country_code || req.body?.country_code;
         
-        if (countryFromParams) return countryFromParams;
+        if (countryFromParams) {
+          console.log('[DEBUG] Country from parameters:', countryFromParams);
+          return countryFromParams;
+        }
         
-        // Check headers for country info
+        // Check headers for country info (second priority)
         const countryFromHeaders = req.headers['cf-ipcountry'] || // Cloudflare
                                   req.headers['x-country-code'] || // Some proxies
-                                  req.headers['geoip-country-code']; // GeoIP headers
+                                  req.headers['geoip-country-code'] || // GeoIP headers
+                                  req.headers['x-forwarded-country'] || // Some platforms
+                                  req.headers['x-user-country']; // Custom headers
         
-        if (countryFromHeaders) return countryFromHeaders;
+        if (countryFromHeaders) {
+          console.log('[DEBUG] Country from headers:', countryFromHeaders);
+          return countryFromHeaders;
+        }
         
         // Try to get country from IP using free geolocation service
         if (ip && ip !== 'Unknown' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && !ip.startsWith('172.') && ip !== '127.0.0.1' && ip !== '::1') {
@@ -676,6 +686,13 @@ app.all('/api/receive-postback', async (req, res) => {
         ip: clientIP,
         country: country,
         sessionId: sessionId,
+        detectedFrom: {
+          ipForwarded: req.headers['x-forwarded-for'],
+          realIP: req.headers['x-real-ip'],
+          clientIP: req.headers['x-client-ip'],
+          connectionIP: req.connection.remoteAddress,
+          requestIP: req.ip
+        },
         headers: req.headers,
         query: req.query,
         body: req.body
