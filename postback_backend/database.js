@@ -106,12 +106,19 @@ const Partner = mongoose.model('Partner', partnerSchema);
 const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
 const Survey = mongoose.model('Survey', surveySchema);
 
-// UserData Schema - Simplified for home page display
+// UserData Schema - Enhanced for home page display and detailed modal
 const userDataSchema = new mongoose.Schema({
   name: { type: String, required: true },
   profile: { type: String, default: '' },
   platform: { type: String, required: true },
   points: { type: Number, default: 0 },
+  // Additional details for modal
+  ipAddress: { type: String, default: 'Unknown' },
+  partnerName: { type: String, default: 'Unknown Partner' },
+  uniqueClick: { type: String, default: '' },
+  sessionId: { type: String, default: '' },
+  country: { type: String, default: 'Unknown' },
+  userAgent: { type: String, default: 'Unknown' },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 }, {

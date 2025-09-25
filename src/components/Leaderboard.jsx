@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import UserCard from './UserCard';
+import UserDetailModal from './UserDetailModal';
 import './Leaderboard.css';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -8,6 +9,7 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   const fetchLeaderboard = async () => {
     try {
@@ -35,8 +37,13 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
             points: 200,
             level: 3,
             completedTasks: 4,
-            country: 'Unknown',
-            rank: 1
+            country: 'US',
+            rank: 1,
+            ipAddress: '192.168.1.100',
+            partnerName: 'Test Partner',
+            uniqueClick: 'click_123456',
+            sessionId: 'session_789012',
+            createdAt: new Date().toISOString()
           },
           {
             userId: 'test2',
@@ -46,8 +53,13 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
             points: 150,
             level: 2,
             completedTasks: 3,
-            country: 'Unknown',
-            rank: 2
+            country: 'UK',
+            rank: 2,
+            ipAddress: '192.168.1.101',
+            partnerName: 'Another Partner',
+            uniqueClick: 'click_654321',
+            sessionId: 'session_210987',
+            createdAt: new Date().toISOString()
           }
         ];
         setLeaderboardData(mockUsers);
@@ -138,6 +150,14 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
     fetchLeaderboard();
   };
 
+  const handleUserClick = (user) => {
+    setSelectedUser(user);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedUser(null);
+  };
+
   if (loading && leaderboardData.length === 0) {
     return (
       <div className="leaderboard-container">
@@ -194,6 +214,7 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
             user={user}
             rank={user.rank || index + 1}
             isTopUser={index < 3}
+            onClick={handleUserClick}
           />
         ))}
       </div>
@@ -213,6 +234,14 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
             View Full Leaderboard →
           </button>
         </div>
+      )}
+
+      {/* User Detail Modal */}
+      {selectedUser && (
+        <UserDetailModal 
+          user={selectedUser} 
+          onClose={handleCloseModal} 
+        />
       )}
     </div>
   );

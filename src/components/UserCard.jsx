@@ -1,7 +1,7 @@
 import React from 'react';
 import './UserCard.css';
 
-const UserCard = ({ user, rank, isTopUser = false }) => {
+const UserCard = ({ user, rank, isTopUser = false, onClick }) => {
   const formatPoints = (points) => {
     if (points >= 1000) {
       return (points / 1000).toFixed(1) + 'k';
@@ -40,7 +40,11 @@ const UserCard = ({ user, rank, isTopUser = false }) => {
   };
 
   return (
-    <div className={`user-card ${isTopUser ? 'top-user' : ''}`}>
+    <div 
+      className={`user-card ${isTopUser ? 'top-user' : ''}`}
+      onClick={() => onClick && onClick(user)}
+      style={{ cursor: onClick ? 'pointer' : 'default' }}
+    >
       <div className="user-card-rank">
         <span className="rank-number">{getRankIcon(rank)}</span>
       </div>
@@ -84,11 +88,7 @@ const UserCard = ({ user, rank, isTopUser = false }) => {
       <div className="user-card-stats">
         <div className="user-points">
           <span className="points-value">{formatPoints(user.points)}</span>
-          <span className="points-label">PTS</span>
-        </div>
-        <div className="user-tasks">
-          <span className="tasks-value">{user.completedTasks || 0}</span>
-          <span className="tasks-label">TASKS</span>
+          <span className="points-label">POINTS</span>
         </div>
       </div>
       

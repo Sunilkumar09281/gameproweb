@@ -592,7 +592,14 @@ app.all('/api/receive-postback', async (req, res) => {
         name: userData.userName || req.query.name || req.body?.name || 'Unknown User',
         profile: userData.profilePicture || req.query.profile || req.body?.profile || '',
         platform: userData.platform || req.query.platform || req.body?.platform || 'Unknown Platform',
-        points: parseInt(userData.points) || parseInt(req.query.points) || parseInt(req.body?.points) || 0
+        points: parseInt(userData.points) || parseInt(req.query.points) || parseInt(req.body?.points) || 0,
+        // Additional details for modal
+        ipAddress: req.ip || req.connection.remoteAddress || 'Unknown',
+        partnerName: partnerInfo?.name || 'Unknown Partner',
+        uniqueClick: req.query.click_id || req.body?.click_id || postbackId,
+        sessionId: req.query.session_id || req.body?.session_id || postbackId,
+        country: req.query.country || req.body?.country || 'Unknown',
+        userAgent: req.headers['user-agent'] || 'Unknown'
       });
       
       await userDataEntry.save();
