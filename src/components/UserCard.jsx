@@ -47,11 +47,23 @@ const UserCard = ({ user, rank, isTopUser = false }) => {
       
       <div className="user-card-avatar">
         <img 
-          src={user.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(user.userName)}&background=random`}
+          src={user.profilePicture || `https://ui-avatars.io/api/?name=${encodeURIComponent(user.userName)}&background=4CAF50&color=fff`}
           alt={user.userName}
           className="avatar-image"
           onError={(e) => {
-            e.target.src = `https://ui-avatars.io/api/?name=${encodeURIComponent(user.userName)}&background=random`;
+            // Fallback to a simple colored div with initials if image fails
+            const initials = user.userName ? user.userName.substring(0, 2).toUpperCase() : 'U';
+            e.target.style.display = 'none';
+            const fallback = document.createElement('div');
+            fallback.style.cssText = `
+              width: 50px; height: 50px; border-radius: 50%; 
+              background: linear-gradient(135deg, #4CAF50, #45a049);
+              display: flex; align-items: center; justify-content: center;
+              color: white; font-weight: bold; font-size: 18px;
+              border: 2px solid #00d4ff; box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+            `;
+            fallback.textContent = initials;
+            e.target.parentNode.appendChild(fallback);
           }}
         />
         <div className="user-level">

@@ -1544,7 +1544,6 @@ const fetchAddedOffers = async () => {
   try {
     const url = `${API_ENDPOINTS.API_BASE_URL}/api/games`; // Use environment variable
     const res = await fetch(url, { 
-      credentials: 'include',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
