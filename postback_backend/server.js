@@ -462,13 +462,27 @@ async function saveLeaderboard(leaderboard) {
 
 // Endpoint to receive postbacks (both GET and POST) with MongoDB integration
 app.all('/api/receive-postback', async (req, res) => {
+  console.log('--- NEW POSTBACK RECEIVED ---');
+  console.log(`[${new Date().toISOString()}] Method: ${req.method}, IP: ${req.ip}`);
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('Query:', JSON.stringify(req.query, null, 2));
+  console.log('Body:', JSON.stringify(req.body, null, 2));
+  console.log('-----------------------------');
+
   try {
     const partnerId = req.query.partner_id || req.body?.partner_id || 'unknown';
+    console.log(`[DEBUG] Partner ID identified as: ${partnerId}`);
     
     // Find partner info if partner_id is provided
     let partnerInfo = null;
     if (partnerId !== 'unknown') {
+      console.log(`[DEBUG] Searching for partner with ID: ${partnerId}`);
       partnerInfo = await Partner.findOne({ partnerId: partnerId });
+      if (partnerInfo) {
+        console.log(`[DEBUG] Found partner: ${partnerInfo.name}`);
+      } else {
+        console.log(`[DEBUG] Partner with ID ${partnerId} not found in database.`);
+      }
     }
     
     // Extract user data from postback with flexible field mapping
@@ -488,6 +502,7 @@ app.all('/api/receive-postback', async (req, res) => {
       level: parseInt(req.query.level || req.body?.level || 1),
       country: req.query.country || req.body?.country || 'Unknown'
     };
+    console.log('[DEBUG] Extracted User Data:', JSON.stringify(userData, null, 2));
     
     const postbackId = uuidv4();
     
@@ -505,24 +520,19 @@ app.all('/api/receive-postback', async (req, res) => {
       receivedAt: new Date()
     });
     
+    console.log('[DEBUG] Saving postback log to database...');
     await postback.save();
+    console.log('[SUCCESS] Postback log saved successfully.');
     
-    // Debug logging
-    console.log('Received postback with data:', {
-      method: req.method,
-      query: req.query,
-      body: req.body,
-      extractedUserData: userData
-    });
-
     // Update leaderboard if we have user data
     if (userData.userId && userData.userName && userData.points > 0) {
-      console.log('Adding user to leaderboard:', userData);
+      console.log(`[DEBUG] Valid user data found. Updating leaderboard for user: ${userData.userName}`);
       
       // Find existing user or create new one
       let user = await User.findOne({ userId: userData.userId });
       
       if (user) {
+        console.log(`[DEBUG] Existing user found. Updating points. Current: ${user.points}, Adding: ${userData.points}`);
         // Update existing user
         user.points += userData.points;
         user.totalEarnings += userData.points;
@@ -534,7 +544,9 @@ app.all('/api/receive-postback', async (req, res) => {
         if (userData.country && userData.country !== 'Unknown') user.country = userData.country;
         
         await user.save();
+        console.log(`[SUCCESS] User ${user.userName} updated. New points: ${user.points}`);
       } else {
+        console.log(`[DEBUG] New user. Creating entry for: ${userData.userName}`);
         // Create new user
         user = new User({
           userId: userData.userId,
@@ -552,32 +564,42 @@ app.all('/api/receive-postback', async (req, res) => {
         });
         
         await user.save();
+        console.log(`[SUCCESS] New user ${user.userName} created with ${user.points} points.`);
       }
       
       // Update ranks for all users
+      console.log('[DEBUG] Updating ranks for all users...');
       await updateUserRanks();
+      console.log('[SUCCESS] Ranks updated.');
+    } else {
+        console.log('[INFO] Leaderboard update skipped. Conditions not met:');
+        console.log(`- Has userId?: ${!!userData.userId}`);
+        console.log(`- Has userName?: ${!!userData.userName}`);
+        console.log(`- Has points > 0?: ${userData.points > 0}`);
     }
     
     // Update partner stats if partner exists
     if (partnerInfo) {
+      console.log(`[DEBUG] Updating stats for partner: ${partnerInfo.name}`);
       partnerInfo.totalPostbacks = (partnerInfo.totalPostbacks || 0) + 1;
       partnerInfo.lastPostbackAt = new Date();
       await partnerInfo.save();
+      console.log('[SUCCESS] Partner stats updated.');
     }
     
     // Return a simple response
+    console.log('[SUCCESS] Sending 200 OK response to client.');
     res.status(200).json({ 
       success: true, 
-      message: 'Postback received', 
-      method: req.method,
-      partnerId: partnerId,
-      partnerName: partnerInfo?.name || 'Unknown Partner',
+      message: 'Postback received and processed',
       postbackId: postbackId,
       userData: userData
     });
     
   } catch (error) {
-    console.error('Error processing postback:', error);
+    console.error('--- !!! POSTBACK PROCESSING FAILED !!! ---');
+    console.error(`[${new Date().toISOString()}] Error details:`, error);
+    console.error('------------------------------------------');
     res.status(500).json({ 
       success: false, 
       error: 'Failed to process postback',

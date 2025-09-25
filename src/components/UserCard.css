@@ -256,3 +256,30 @@
   color: #ffd700;
   text-shadow: 0 0 15px rgba(255, 215, 0, 0.6);
 }
+
+/* Horizontal layout for home page */
+.home-page-leaderboard .user-card {
+  flex: 0 0 auto;
+  min-width: 280px;
+  max-width: 320px;
+  margin: 0;
+}
+
+.home-page-leaderboard .user-card:hover {
+  transform: translateY(-4px) scale(1.02);
+}
+
+/* Compact horizontal card layout */
+@media (max-width: 768px) {
+  .home-page-leaderboard .user-card {
+    min-width: 240px;
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-page-leaderboard .user-card {
+    min-width: 200px;
+    max-width: 240px;
+  }
+}

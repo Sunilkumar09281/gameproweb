@@ -16,11 +16,13 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
       const response = await fetch(`${API_BASE_URL}/api/leaderboard?limit=${maxUsers}`);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch leaderboard data');
+        throw new Error(`Failed to fetch leaderboard data: ${response.status} ${response.statusText}`);
       }
       
       const data = await response.json();
-      setLeaderboardData(data.topUsers || data.leaderboard || []);
+      const users = data.topUsers || data.leaderboard || [];
+      
+      setLeaderboardData(users);
       setLastUpdate(new Date().toISOString());
       setError(null);
     } catch (err) {
