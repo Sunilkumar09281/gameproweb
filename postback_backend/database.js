@@ -100,6 +100,7 @@ const surveySchema = new mongoose.Schema({
 });
 
 // Create Models
+const User = mongoose.model('User', userSchema);
 const Postback = mongoose.model('Postback', postbackSchema);
 const Partner = mongoose.model('Partner', partnerSchema);
 const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
@@ -121,6 +122,7 @@ const UserData = mongoose.model('UserData', userDataSchema);
 
 // Export models
 module.exports = {
+  connectDB,
   User,
   Postback,
   Partner,
