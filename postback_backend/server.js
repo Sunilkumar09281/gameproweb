@@ -1,4 +1,5 @@
 const express = require('express');
+const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
@@ -9,6 +10,7 @@ const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const cheerio = require('cheerio');
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -223,8 +225,6 @@ const publicApiLimiter = rateLimit({
   standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
   legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 });
-
-const cheerio = require('cheerio');
 
 // CORS configuration for both development and production
 const corsOptions = {
