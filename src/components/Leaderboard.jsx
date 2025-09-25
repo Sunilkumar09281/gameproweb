@@ -23,8 +23,39 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
       console.log('📊 User data received:', data);
       const users = data.users || [];
       
-      setLeaderboardData(users);
-      console.log('✅ Leaderboard updated with', users.length, 'users');
+      // If no users from API, add some mock data for testing
+      if (users.length === 0) {
+        console.log('⚠️ No users from API, adding mock data for testing');
+        const mockUsers = [
+          {
+            userId: 'test1',
+            userName: 'TestUser1',
+            profilePicture: 'https://ui-avatars.io/api/?name=TestUser1&background=4CAF50&color=fff',
+            platform: 'TestPlatform',
+            points: 200,
+            level: 3,
+            completedTasks: 4,
+            country: 'Unknown',
+            rank: 1
+          },
+          {
+            userId: 'test2',
+            userName: 'TestUser2',
+            profilePicture: 'https://ui-avatars.io/api/?name=TestUser2&background=FF5722&color=fff',
+            platform: 'AnotherPlatform',
+            points: 150,
+            level: 2,
+            completedTasks: 3,
+            country: 'Unknown',
+            rank: 2
+          }
+        ];
+        setLeaderboardData(mockUsers);
+        console.log('✅ Leaderboard updated with', mockUsers.length, 'mock users');
+      } else {
+        setLeaderboardData(users);
+        console.log('✅ Leaderboard updated with', users.length, 'real users');
+      }
       setLastUpdate(new Date().toISOString());
       setError(null);
     } catch (err) {
