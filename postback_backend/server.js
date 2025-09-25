@@ -621,16 +621,36 @@ app.all('/api/receive-postback', async (req, res) => {
         if (countryFromHeaders) return countryFromHeaders;
         
         // Try to get country from IP using free geolocation service
-        if (ip && ip !== 'Unknown' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && ip !== '127.0.0.1') {
+        if (ip && ip !== 'Unknown' && !ip.startsWith('192.168.') && !ip.startsWith('10.') && !ip.startsWith('172.') && ip !== '127.0.0.1' && ip !== '::1') {
           try {
             console.log('[DEBUG] Attempting IP geolocation for:', ip);
-            const geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=countryCode`, { timeout: 3000 });
-            if (geoResponse.data && geoResponse.data.countryCode) {
-              console.log('[DEBUG] IP geolocation result:', geoResponse.data.countryCode);
-              return geoResponse.data.countryCode;
+            // Try multiple geolocation services
+            let geoResponse;
+            
+            // First try ip-api.com
+            try {
+              geoResponse = await axios.get(`http://ip-api.com/json/${ip}?fields=countryCode,country`, { timeout: 5000 });
+              if (geoResponse.data && geoResponse.data.countryCode && geoResponse.data.countryCode !== 'fail') {
+                console.log('[DEBUG] IP geolocation result from ip-api:', geoResponse.data.countryCode);
+                return geoResponse.data.countryCode;
+              }
+            } catch (error1) {
+              console.log('[DEBUG] ip-api.com failed:', error1.message);
             }
+            
+            // Fallback to ipapi.co
+            try {
+              geoResponse = await axios.get(`https://ipapi.co/${ip}/country/`, { timeout: 5000 });
+              if (geoResponse.data && typeof geoResponse.data === 'string' && geoResponse.data.length === 2) {
+                console.log('[DEBUG] IP geolocation result from ipapi.co:', geoResponse.data);
+                return geoResponse.data;
+              }
+            } catch (error2) {
+              console.log('[DEBUG] ipapi.co failed:', error2.message);
+            }
+            
           } catch (geoError) {
-            console.log('[DEBUG] IP geolocation failed:', geoError.message);
+            console.log('[DEBUG] All IP geolocation services failed:', geoError.message);
           }
         }
         
@@ -756,7 +776,7 @@ app.get('/api/user-data', async (req, res) => {
       .limit(parseInt(limit))
       .lean();
     
-    // Transform data to match UserCard component expectations
+    // Transform data to match UserCard component expectations with enhanced fields
     const transformedData = userData.map((user, index) => ({
       userId: user._id,
       userName: user.name,
@@ -765,8 +785,16 @@ app.get('/api/user-data', async (req, res) => {
       points: user.points,
       level: Math.floor(user.points / 100) + 1, // Calculate level based on points
       completedTasks: Math.floor(user.points / 50), // Calculate tasks based on points
-      country: 'Unknown',
-      rank: index + 1
+      country: user.country || 'Unknown',
+      rank: index + 1,
+      // Enhanced fields for modal
+      ipAddress: user.ipAddress || 'N/A',
+      partnerName: user.partnerName || 'Unknown Partner',
+      uniqueClick: user.uniqueClick || 'N/A',
+      sessionId: user.sessionId || 'N/A',
+      userAgent: user.userAgent || 'Unknown',
+      createdAt: user.createdAt || user.updatedAt || new Date().toISOString(),
+      joinedAt: user.createdAt || user.updatedAt || new Date().toISOString()
     }));
     
     res.json({
@@ -2166,11 +2194,75 @@ app.all('/api/debug-postback', async (req, res) => {
       query: req.query,
       body: req.body,
       rawIP: req.ip,
-      connectionIP: req.connection.remoteAddress
+      connectionIP: req.connection.remoteAddress,
+      // Show what would be saved to UserData
+      wouldSaveToUserData: {
+        name: req.query.name || req.body?.name || 'Unknown User',
+        profile: req.query.profile || req.body?.profile || '',
+        platform: req.query.platform || req.body?.platform || 'Unknown Platform',
+        points: parseInt(req.query.points || req.body?.points || 0),
+        ipAddress: clientIP,
+        partnerName: 'Unknown Partner',
+        uniqueClick: req.query.click_id || req.body?.click_id || 'fallback_id',
+        sessionId: req.query.session_id || req.body?.session_id || 'fallback_session',
+        country: country,
+        userAgent: req.headers['user-agent'] || 'Unknown'
+      }
     };
 
     res.json(debugInfo);
   } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Endpoint to update existing UserData records with proper geolocation
+app.post('/api/update-user-data-geolocation', async (req, res) => {
+  try {
+    console.log('[DEBUG] Updating existing UserData records with geolocation...');
+    
+    // Find all UserData records with Unknown country
+    const usersToUpdate = await UserData.find({ 
+      $or: [
+        { country: 'Unknown' },
+        { country: { $exists: false } }
+      ]
+    });
+    
+    console.log(`[DEBUG] Found ${usersToUpdate.length} users to update`);
+    
+    let updatedCount = 0;
+    
+    for (const user of usersToUpdate) {
+      if (user.ipAddress && user.ipAddress !== 'Unknown' && user.ipAddress !== 'N/A') {
+        try {
+          // Try to get country from IP
+          const geoResponse = await axios.get(`http://ip-api.com/json/${user.ipAddress}?fields=countryCode,country`, { timeout: 5000 });
+          if (geoResponse.data && geoResponse.data.countryCode && geoResponse.data.countryCode !== 'fail') {
+            await UserData.findByIdAndUpdate(user._id, { 
+              country: geoResponse.data.countryCode 
+            });
+            updatedCount++;
+            console.log(`[DEBUG] Updated user ${user.name} with country: ${geoResponse.data.countryCode}`);
+          }
+        } catch (geoError) {
+          console.log(`[DEBUG] Failed to update user ${user.name}:`, geoError.message);
+        }
+        
+        // Add delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
+    res.json({
+      success: true,
+      message: `Updated ${updatedCount} out of ${usersToUpdate.length} users`,
+      updatedCount,
+      totalFound: usersToUpdate.length
+    });
+    
+  } catch (error) {
+    console.error('[ERROR] Failed to update UserData geolocation:', error);
     res.status(500).json({ error: error.message });
   }
 });
