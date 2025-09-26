@@ -669,10 +669,14 @@ function ItemDetailModal({ item, onClose, onViewLottery, handleProtectedClick })
 
   const handleActionClick = () => {
     handleProtectedClick(() => {
-      if (item.url) {
-        window.open(item.url, '_blank');
+      // Check for survey link field first, then fallback to url
+      const surveyUrl = item.link || item.url;
+      if (surveyUrl) {
+        window.open(surveyUrl, '_blank');
       } else {
-        console.log(`Starting task: ${item.title}`);
+        console.log(`Starting task: ${item.title || item.name}`);
+        // Show a message if no URL is available
+        alert('Survey link not available. Please contact support.');
       }
       onClose();
     });
@@ -1336,40 +1340,6 @@ function TasksListingPage({ onBack, initialCategory = 'all', handleProtectedClic
   );
 }
 
-const NotificationBar = () => {
-  const notifications = [
-    { name: "Naimasfak", amount: "0.48", platform: "POLL.FY", avatar: "https://i.pravatar.cc/40?img=1", bg: "#1E90FF" },
-    { name: "Kambuh", amount: "71", platform: "AYET", avatar: "https://i.pravatar.cc/40?img=2", bg: "#20B2AA" },
-    { name: "rodolf", amount: "473", platform: "ADGATE", avatar: "https://i.pravatar.cc/40?img=3", bg: "#008080" },
-    { name: "gyyttrtt", amount: "225", platform: "ADGATE", avatar: "https://i.pravatar.cc/40?img=4", bg: "#00CED1" },
-    { name: "exigible", amount: "262", platform: "ADGATE", avatar: "https://i.pravatar.cc/40?img=5", bg: "#32CD32" },
-    { name: "exigible", amount: "225", platform: "ADGATE", avatar: "https://i.pravatar.cc/40?img=6", bg: "#32CD32" },
-    { name: ".", amount: "1200", platform: "REVENUEWALL", avatar: "https://i.pravatar.cc/40?img=7", bg: "#FF8C00" },
-    { name: "LTC", amount: "861", platform: "WITHDRAWAL", avatar: "https://i.pravatar.cc/40?img=8", bg: "#778899" },
-    { name: "LTC", amount: "473", platform: "WITHDRAWAL", avatar: "https://i.pravatar.cc/40?img=9", bg: "#708090" },
-  ];
-
-  return (
-    <div className="notification-bar">
-      <div className="notification-scroll">
-          {notifications.map((item, idx) => (
-            <div key={idx} className="notification-card">
-              <div className="notif-left">
-                <img src={item.avatar} alt={item.name} className="notif-avatar" />
-                <div className="notif-text">
-                  <div className="notif-header">
-                    <div className="notif-name">{item.name}</div>
-                    <div className="notif-amount">{item.amount}</div>
-                  </div>
-                  <div className="notif-tag">{item.platform}</div>
-                </div>
-              </div>
-            </div>
-          ))}
-      </div>
-    </div>
-  );
-};
 
 const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtectedClick, toggleLoginStatus, userBalance, openProfileModal, isAdmin }) => {
   return (
@@ -1621,7 +1591,14 @@ const fetchAddedOffers = async () => {
   return (
     <div className="home-container">
       <main className="home-main-content">
-        <NotificationBar />
+        {/* Leaderboard Section - At the very top */}
+        <section className="leaderboard-section game-section">
+          <Leaderboard 
+            showTitle={false} 
+            maxUsers={10} 
+            isHomePage={true} 
+          />
+        </section>
         {homePageSections.map((category) => {
           const sectionId = `section-${category.title.replace(/\s/g, '-')}`;
           const isExpanded = expandedSections[category.title];
@@ -1772,14 +1749,6 @@ const fetchAddedOffers = async () => {
           </div>
         </section>
 
-        {/* Leaderboard Section */}
-        <section className="leaderboard-section game-section">
-          <Leaderboard 
-            showTitle={true} 
-            maxUsers={10} 
-            isHomePage={true} 
-          />
-        </section>
       </main>
 
       {selectedItem && (

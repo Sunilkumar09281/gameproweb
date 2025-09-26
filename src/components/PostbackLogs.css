@@ -32,6 +32,8 @@
 }
 
 .refresh-button,
+.status-button,
+.test-button,
 .clear-button {
   padding: 8px 16px;
   border: none;
@@ -56,6 +58,26 @@
 .refresh-button:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.status-button {
+  background: linear-gradient(135deg, #9C27B0, #7B1FA2);
+  color: white;
+}
+
+.status-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(156, 39, 176, 0.4);
+}
+
+.test-button {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+}
+
+.test-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
 }
 
 .clear-button {

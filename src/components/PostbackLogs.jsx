@@ -15,20 +15,57 @@ const PostbackLogs = () => {
     try {
       setLoading(true);
       console.log('🔍 Fetching postbacks from:', API_ENDPOINTS.RECEIVED_POSTBACKS);
-      const response = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS);
+      
+      const response = await fetch(API_ENDPOINTS.RECEIVED_POSTBACKS, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response headers:', response.headers);
       
       if (!response.ok) {
-        throw new Error('Failed to fetch postback logs');
+        const errorText = await response.text();
+        console.error('❌ Response error:', errorText);
+        
+        // Try legacy endpoint as fallback
+        console.log('🔄 Trying legacy postbacks endpoint...');
+        try {
+          const legacyResponse = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/postbacks`);
+          if (legacyResponse.ok) {
+            const legacyData = await legacyResponse.json();
+            console.log('📊 Legacy postbacks data:', legacyData);
+            const postbacksArray = Array.isArray(legacyData) ? legacyData : [];
+            setPostbacks(postbacksArray.reverse());
+            setError(null);
+            console.log('✅ PostbackLogs updated with legacy data:', postbacksArray.length, 'postbacks');
+            return;
+          }
+        } catch (legacyErr) {
+          console.log('❌ Legacy endpoint also failed:', legacyErr);
+        }
+        
+        throw new Error(`Failed to fetch postback logs: ${response.status} - ${errorText}`);
       }
       
       const data = await response.json();
-      console.log('📊 Postbacks received:', data);
-      setPostbacks(data.reverse()); // Show newest first
+      console.log('📊 Raw postbacks data:', data);
+      console.log('📊 Data type:', typeof data);
+      console.log('📊 Is array:', Array.isArray(data));
+      
+      // Ensure data is an array
+      const postbacksArray = Array.isArray(data) ? data : [];
+      console.log('📊 Postbacks array length:', postbacksArray.length);
+      
+      setPostbacks(postbacksArray.reverse()); // Show newest first
       setError(null);
-      console.log('✅ PostbackLogs updated with', data.length, 'postbacks');
+      console.log('✅ PostbackLogs updated with', postbacksArray.length, 'postbacks');
     } catch (err) {
       console.error('❌ Error fetching postbacks:', err);
-      setError(err.message);
+      setError(`Error: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -120,6 +157,113 @@ const PostbackLogs = () => {
     }
   };
 
+  const createTestPostback = async () => {
+    try {
+      const timestamp = Date.now();
+      const testData = {
+        user_id: 'test_user_' + timestamp,
+        user_name: 'Test User ' + timestamp,
+        user_email: 'test' + timestamp + '@example.com',
+        points: Math.floor(Math.random() * 500) + 50, // Random points between 50-550
+        platform: 'Test Platform',
+        partner_id: 'test_partner_' + timestamp,
+        transaction_id: 'txn_' + timestamp,
+        offer_id: 'offer_test_' + timestamp
+      };
+
+      console.log('🧪 Creating test postback with data:', testData);
+      console.log('🧪 Postback URL:', `${API_ENDPOINTS.API_BASE_URL}/api/receive-postback`);
+
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/receive-postback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
+        body: JSON.stringify(testData)
+      });
+
+      console.log('📡 Test Postback Response Status:', response.status);
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Test postback created successfully:', result);
+        
+        // Check if the response indicates MongoDB or JSON storage
+        const storageType = result.postbackId ? 'MongoDB' : 'JSON file';
+        console.log('💾 Storage type detected:', storageType);
+        
+        alert(`✅ Test postback created successfully!\n\nPostback ID: ${result.postbackId}\nUser: ${testData.user_name}\nPoints: ${testData.points}\n\nNote: If postbacks don't appear in the table, the production server may be using JSON file storage instead of MongoDB.`);
+        
+        // Wait a moment then refresh the list
+        setTimeout(() => {
+          fetchPostbacks();
+        }, 2000); // Increased wait time
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Test postback error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+    } catch (err) {
+      console.error('❌ Error creating test postback:', err);
+      alert(`Failed to create test postback: ${err.message}\n\nPlease check the console for more details.`);
+    }
+  };
+
+  const checkMongoDBStatus = async () => {
+    try {
+      console.log('🔍 Checking MongoDB connection status...');
+      console.log('🔍 MongoDB Status URL:', API_ENDPOINTS.MONGODB_STATUS);
+      
+      const response = await fetch(API_ENDPOINTS.MONGODB_STATUS, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      console.log('📡 MongoDB Status Response:', response.status);
+      
+      if (response.ok) {
+        const status = await response.json();
+        console.log('📊 MongoDB Status:', status);
+        
+        const message = `MongoDB Status:
+Connection: ${status.mongodb.connectionState}
+Database: ${status.mongodb.database}
+Collections:
+- Postbacks: ${status.mongodb.collections.postbacks}
+- Users: ${status.mongodb.collections.users}
+- Partners: ${status.mongodb.collections.partners}
+
+Timestamp: ${status.timestamp}`;
+        
+        alert(message);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ MongoDB Status Error Response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+    } catch (err) {
+      console.error('❌ Error checking MongoDB status:', err);
+      
+      // Fallback: Show basic connection info
+      const fallbackMessage = `MongoDB Status Check Failed: ${err.message}
+
+This might mean:
+1. The /api/mongodb-status endpoint is not deployed
+2. There's a network connectivity issue
+3. The backend server is not running
+
+Current API Base URL: ${API_ENDPOINTS.API_BASE_URL}
+Postbacks API is working: ✅ (Status 200)
+Postbacks in database: ${postbacks.length}`;
+      
+      alert(fallbackMessage);
+    }
+  };
+
   if (loading && postbacks.length === 0) {
     return (
       <div className="postback-logs-container">
@@ -141,6 +285,13 @@ const PostbackLogs = () => {
         <div className="postback-logs-actions">
           <button onClick={fetchPostbacks} className="refresh-button" disabled={loading}>
             🔄 Refresh
+          </button>
+          {/* Temporarily disabled - endpoint not available on production */}
+          {/* <button onClick={checkMongoDBStatus} className="status-button">
+            🔍 Check MongoDB
+          </button> */}
+          <button onClick={createTestPostback} className="test-button">
+            🧪 Create Test Postback
           </button>
           <button onClick={clearAllPostbacks} className="clear-button">
             🗑️ Clear All
@@ -192,6 +343,27 @@ const PostbackLogs = () => {
         </div>
       </div>
 
+      {postbacks.length === 0 && (
+        <div className="postback-logs-diagnostic" style={{
+          background: 'rgba(255, 193, 7, 0.1)',
+          border: '1px solid rgba(255, 193, 7, 0.3)',
+          borderRadius: '8px',
+          padding: '16px',
+          margin: '16px 0',
+          color: '#ffc107'
+        }}>
+          <h4>🔍 Diagnostic Information</h4>
+          <p><strong>Issue Detected:</strong> Postbacks are being created successfully but not appearing in the database.</p>
+          <p><strong>Possible Causes:</strong></p>
+          <ul style={{ textAlign: 'left', margin: '8px 0' }}>
+            <li>Production server may not have the latest MongoDB integration code</li>
+            <li>Postbacks might be saved to JSON files instead of MongoDB</li>
+            <li>MongoDB connection issue on the production server</li>
+          </ul>
+          <p><strong>API Base URL:</strong> <code>{API_ENDPOINTS.API_BASE_URL}</code></p>
+        </div>
+      )}
+
       {error && (
         <div className="postback-logs-error">
           <p>⚠️ {error}</p>
@@ -216,7 +388,7 @@ const PostbackLogs = () => {
           </thead>
           <tbody>
             {paginatedPostbacks.map((postback) => (
-              <tr key={postback.id} className="postback-row">
+              <tr key={postback._id || postback.postbackId} className="postback-row">
                 <td className="time-cell">
                   {formatDate(postback.receivedAt)}
                 </td>
@@ -272,7 +444,7 @@ const PostbackLogs = () => {
                     className="details-button"
                     onClick={() => {
                       const details = {
-                        'Postback ID': postback.id,
+                        'Postback ID': postback._id || postback.postbackId,
                         'Partner ID': postback.partnerId,
                         'User Agent': postback.headers?.['user-agent'],
                         'Query Parameters': JSON.stringify(postback.query, null, 2),
@@ -294,7 +466,19 @@ const PostbackLogs = () => {
         <div className="postback-logs-empty">
           <div className="empty-state">
             <h3>📭 No postback logs found</h3>
-            <p>No postbacks match your current filters.</p>
+            {postbacks.length === 0 ? (
+              <div>
+                <p>No postbacks have been received yet.</p>
+                <p><strong>To get started:</strong></p>
+                <ul style={{ textAlign: 'left', margin: '10px 0' }}>
+                  <li>Click "🧪 Create Test Postback" to generate sample data</li>
+                  <li>Send real postbacks to: <code>{API_ENDPOINTS.API_BASE_URL}/api/receive-postback</code></li>
+                  <li>Check "🔍 Check MongoDB" to verify database connection</li>
+                </ul>
+              </div>
+            ) : (
+              <p>No postbacks match your current filters.</p>
+            )}
           </div>
         </div>
       )}

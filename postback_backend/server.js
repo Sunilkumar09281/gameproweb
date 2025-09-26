@@ -759,13 +759,55 @@ async function updateUserRanks() {
 // Endpoint to get all received postbacks from MongoDB
 app.get('/api/received-postbacks', async (req, res) => {
   try {
+    console.log('📊 Fetching postbacks from MongoDB...');
     const postbacks = await Postback.find({})
       .sort({ receivedAt: -1 })
       .lean();
+    console.log(`📊 Found ${postbacks.length} postbacks in MongoDB`);
     res.json(postbacks);
   } catch (error) {
-    console.error('Error fetching postbacks:', error);
-    res.status(500).json({ error: 'Failed to fetch postbacks' });
+    console.error('❌ Error fetching postbacks:', error);
+    res.status(500).json({ error: 'Failed to fetch postbacks', details: error.message });
+  }
+});
+
+// MongoDB connection status endpoint
+app.get('/api/mongodb-status', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const connectionState = mongoose.connection.readyState;
+    const states = {
+      0: 'disconnected',
+      1: 'connected',
+      2: 'connecting',
+      3: 'disconnecting'
+    };
+    
+    const postbackCount = await Postback.countDocuments();
+    const userCount = await User.countDocuments();
+    const partnerCount = await Partner.countDocuments();
+    
+    res.json({
+      status: 'success',
+      mongodb: {
+        connectionState: states[connectionState],
+        connectionStateCode: connectionState,
+        database: 'gamepro_db',
+        collections: {
+          postbacks: postbackCount,
+          users: userCount,
+          partners: partnerCount
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error checking MongoDB status:', error);
+    res.status(500).json({ 
+      status: 'error', 
+      error: 'Failed to check MongoDB status',
+      details: error.message 
+    });
   }
 });
 

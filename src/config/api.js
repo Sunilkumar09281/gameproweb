@@ -47,6 +47,7 @@ export const API_ENDPOINTS = {
   
   // Other endpoints
   HEALTH: `${API_BASE_URL}/health`,
+  MONGODB_STATUS: `${API_BASE_URL}/api/mongodb-status`,
   TRACK_CLICK: `${API_BASE_URL}/api/track-click`,
   CLICKS: `${API_BASE_URL}/api/clicks`,
   API_KEYS: `${API_BASE_URL}/api/apikeys`,
