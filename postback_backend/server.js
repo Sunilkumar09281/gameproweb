@@ -771,6 +771,21 @@ app.get('/api/received-postbacks', async (req, res) => {
   }
 });
 
+// Simple test endpoint to check server version
+app.get('/api/server-info', (req, res) => {
+  res.json({
+    message: 'Server is running with MongoDB integration',
+    timestamp: new Date().toISOString(),
+    version: '2.0-mongodb',
+    endpoints: [
+      '/api/receive-postback',
+      '/api/received-postbacks', 
+      '/api/mongodb-status',
+      '/api/server-info'
+    ]
+  });
+});
+
 // MongoDB connection status endpoint
 app.get('/api/mongodb-status', async (req, res) => {
   try {

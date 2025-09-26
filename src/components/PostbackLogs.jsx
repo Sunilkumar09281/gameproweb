@@ -210,20 +210,52 @@ const PostbackLogs = () => {
     }
   };
 
+  const checkServerVersion = async () => {
+    try {
+      console.log('🔍 Checking server version...');
+      console.log('🔍 Server Info URL:', API_ENDPOINTS.SERVER_INFO);
+      
+      const response = await fetch(API_ENDPOINTS.SERVER_INFO);
+      
+      if (response.ok) {
+        const info = await response.json();
+        console.log('📊 Server Info:', info);
+        
+        const message = `Server Information:
+Version: ${info.version}
+Message: ${info.message}
+Available Endpoints: ${info.endpoints.join(', ')}
+Timestamp: ${info.timestamp}
+
+✅ Server has MongoDB integration!`;
+        
+        alert(message);
+        
+        // If server has MongoDB, try to check MongoDB status
+        if (info.version.includes('mongodb')) {
+          setTimeout(() => checkMongoDBStatus(), 1000);
+        }
+      } else {
+        throw new Error(`Server check failed: ${response.status}`);
+      }
+    } catch (err) {
+      console.error('❌ Error checking server version:', err);
+      alert(`❌ Server Check Failed: ${err.message}
+
+This means your production server is still running the OLD version without MongoDB integration.
+
+You need to:
+1. Push your updated code to GitHub
+2. Redeploy on Render
+3. Wait for deployment to complete`);
+    }
+  };
+
   const checkMongoDBStatus = async () => {
     try {
       console.log('🔍 Checking MongoDB connection status...');
-      console.log('🔍 MongoDB Status URL:', API_ENDPOINTS.MONGODB_STATUS);
       
-      const response = await fetch(API_ENDPOINTS.MONGODB_STATUS, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      console.log('📡 MongoDB Status Response:', response.status);
+      const response = await fetch(API_ENDPOINTS.MONGODB_STATUS);
       
       if (response.ok) {
         const status = await response.json();
@@ -241,26 +273,11 @@ Timestamp: ${status.timestamp}`;
         
         alert(message);
       } else {
-        const errorText = await response.text();
-        console.error('❌ MongoDB Status Error Response:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`MongoDB check failed: ${response.status}`);
       }
     } catch (err) {
       console.error('❌ Error checking MongoDB status:', err);
-      
-      // Fallback: Show basic connection info
-      const fallbackMessage = `MongoDB Status Check Failed: ${err.message}
-
-This might mean:
-1. The /api/mongodb-status endpoint is not deployed
-2. There's a network connectivity issue
-3. The backend server is not running
-
-Current API Base URL: ${API_ENDPOINTS.API_BASE_URL}
-Postbacks API is working: ✅ (Status 200)
-Postbacks in database: ${postbacks.length}`;
-      
-      alert(fallbackMessage);
+      alert(`❌ MongoDB Check Failed: ${err.message}`);
     }
   };
 
@@ -286,10 +303,9 @@ Postbacks in database: ${postbacks.length}`;
           <button onClick={fetchPostbacks} className="refresh-button" disabled={loading}>
             🔄 Refresh
           </button>
-          {/* Temporarily disabled - endpoint not available on production */}
-          {/* <button onClick={checkMongoDBStatus} className="status-button">
-            🔍 Check MongoDB
-          </button> */}
+          <button onClick={checkServerVersion} className="status-button">
+            🔍 Check Server
+          </button>
           <button onClick={createTestPostback} className="test-button">
             🧪 Create Test Postback
           </button>
