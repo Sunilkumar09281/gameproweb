@@ -14,6 +14,67 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "fire
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { API_ENDPOINTS } from '../config/api';
+
+// Recent Activity Section Component
+const RecentActivitySection = ({ handleProtectedClick }) => {
+  const [recentActivities, setRecentActivities] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchRecentActivities();
+  }, []);
+
+  const fetchRecentActivities = async () => {
+    try {
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/received-postbacks`);
+      if (response.ok) {
+        const data = await response.json();
+        setRecentActivities(data.slice(0, 6)); // Show only 6 recent activities
+      }
+    } catch (err) {
+      console.error('Error fetching activities:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const ActivityCard = ({ activity }) => {
+    const userName = activity.userData?.userName || activity.user_name || 'Anonymous';
+    const platform = activity.userData?.platform || activity.platform || 'Platform';
+    const points = activity.userData?.points || activity.points || 0;
+    const avatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random&color=fff&size=50`;
+
+    return (
+      <div className="activity-card-display">
+        <img src={avatar} alt={userName} className="activity-avatar" />
+        <div className="activity-info">
+          <h4>{userName}</h4>
+          <p>{platform}</p>
+          <span className="activity-points">+{points} pts</span>
+        </div>
+      </div>
+    );
+  };
+
+  if (loading || recentActivities.length === 0) return null;
+
+  return (
+    <section className="recent-activity-section game-section">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <h2 className="section-title-with-icon">🎯 Recent Activity</h2>
+        <button className="view-all-button" onClick={() => handleProtectedClick(() => window.location.hash = '#dashboard')}>
+          View All
+        </button>
+      </div>
+      <div className="activity-carousel">
+        {recentActivities.map((activity, index) => (
+          <ActivityCard key={activity._id || index} activity={activity} />
+        ))}
+      </div>
+    </section>
+  );
+};
+
 // paste/replace the existing handleGameClick in src/components/home.jsx
 const handleGameClick = async (game) => {
   try {
@@ -1599,6 +1660,9 @@ const fetchAddedOffers = async () => {
             isHomePage={true} 
           />
         </section>
+
+        {/* Recent Activity Section */}
+        <RecentActivitySection handleProtectedClick={handleProtectedClick} />
         {homePageSections.map((category) => {
           const sectionId = `section-${category.title.replace(/\s/g, '-')}`;
           const isExpanded = expandedSections[category.title];

@@ -165,28 +165,14 @@ const PostbackLogs = () => {
 
   const createTestPostback = async () => {
     try {
-      const timestamp = Date.now();
-      const testData = {
-        user_id: 'test_user_' + timestamp,
-        user_name: 'Test User ' + timestamp,
-        user_email: 'test' + timestamp + '@example.com',
-        points: Math.floor(Math.random() * 500) + 50, // Random points between 50-550
-        platform: 'Test Platform',
-        partner_id: 'test_partner_' + timestamp,
-        transaction_id: 'txn_' + timestamp,
-        offer_id: 'offer_test_' + timestamp
-      };
-
-      console.log('🧪 Creating test postback with data:', testData);
-      console.log('🧪 Postback URL:', `${API_ENDPOINTS.API_BASE_URL}/api/receive-postback`);
-
-      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/receive-postback`, {
+      console.log('🧪 Creating direct MongoDB test postback...');
+      
+      const response = await fetch(`${API_ENDPOINTS.API_BASE_URL}/api/test-postback-creation`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-        },
-        body: JSON.stringify(testData)
+        }
       });
 
       console.log('📡 Test Postback Response Status:', response.status);
@@ -195,16 +181,12 @@ const PostbackLogs = () => {
         const result = await response.json();
         console.log('✅ Test postback created successfully:', result);
         
-        // Check if the response indicates MongoDB or JSON storage
-        const storageType = result.postbackId ? 'MongoDB' : 'JSON file';
-        console.log('💾 Storage type detected:', storageType);
-        
-        alert(`✅ Test postback created successfully!\n\nPostback ID: ${result.postbackId}\nUser: ${testData.user_name}\nPoints: ${testData.points}\n\nNote: If postbacks don't appear in the table, the production server may be using JSON file storage instead of MongoDB.`);
+        alert(`✅ Direct MongoDB test postback created!\n\nPostback ID: ${result.postbackId}\nData: ${JSON.stringify(result.data, null, 2)}`);
         
         // Wait a moment then refresh the list
         setTimeout(() => {
           fetchPostbacks();
-        }, 2000); // Increased wait time
+        }, 2000);
       } else {
         const errorText = await response.text();
         console.error('❌ Test postback error response:', errorText);

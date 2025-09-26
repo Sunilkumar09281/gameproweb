@@ -759,12 +759,78 @@ async function updateUserRanks() {
 // Endpoint to get all received postbacks from MongoDB
 app.get('/api/received-postbacks', async (req, res) => {
   try {
-    console.log('📊 Fetching postbacks from MongoDB...');
-    const postbacks = await Postback.find({})
-      .sort({ receivedAt: -1 })
-      .lean();
-    console.log(`📊 Found ${postbacks.length} postbacks in MongoDB`);
-    res.json(postbacks);
+    console.log('📊 Fetching postbacks from MongoDB collection: postbacks');
+    console.log('📊 MongoDB connection state:', mongoose.connection.readyState);
+    console.log('📊 Database name:', mongoose.connection.db.databaseName);
+    
+    // Direct access to the postbacks collection
+    const db = mongoose.connection.db;
+    
+    // First, check all collections
+    const collections = await db.listCollections().toArray();
+    console.log('📊 All collections:', collections.map(c => c.name));
+    
+    // Check if postbacks collection exists and has data
+    const postbacksCollection = db.collection('postbacks');
+    const count = await postbacksCollection.countDocuments();
+    console.log(`📊 Total documents in postbacks collection: ${count}`);
+    
+    // Get all postbacks with detailed logging
+    const postbacks = await postbacksCollection.find({}).sort({ receivedAt: -1 }).toArray();
+    
+    console.log(`📊 Found ${postbacks.length} postbacks in 'postbacks' collection`);
+    
+    if (postbacks.length > 0) {
+      console.log('📊 First 3 postback structures:');
+      postbacks.slice(0, 3).forEach((postback, index) => {
+        console.log(`📊 Postback ${index + 1}:`, JSON.stringify(postback, null, 2));
+      });
+      
+      // Check what fields are available
+      const samplePostback = postbacks[0];
+      console.log('📊 Available fields in postback:', Object.keys(samplePostback));
+      
+      // Transform data to match frontend expectations
+      const transformedPostbacks = postbacks.map(postback => ({
+        _id: postback._id,
+        id: postback._id,
+        user_name: postback.user_name || postback.userData?.userName || postback.userName,
+        user_email: postback.user_email || postback.userData?.userEmail || postback.userEmail,
+        points: postback.points || postback.userData?.points || 0,
+        platform: postback.platform || postback.userData?.platform || 'Unknown',
+        partner_id: postback.partner_id || postback.partnerId,
+        transaction_id: postback.transaction_id || postback.transactionId,
+        offer_id: postback.offer_id || postback.offerId,
+        receivedAt: postback.receivedAt || postback.createdAt || new Date().toISOString(),
+        ipAddress: postback.ipAddress || postback.ip_address,
+        userData: postback.userData || {},
+        // Include all original fields for debugging
+        originalData: postback
+      }));
+      
+      console.log('📊 Transformed first postback:', JSON.stringify(transformedPostbacks[0], null, 2));
+      
+      res.json(transformedPostbacks);
+    } else {
+      console.log('📊 No postbacks found - checking alternative collection names...');
+      const alternativeNames = ['received_postbacks', 'postback_logs', 'user_activities'];
+      
+      for (const collectionName of alternativeNames) {
+        try {
+          const altCollection = db.collection(collectionName);
+          const altCount = await altCollection.countDocuments();
+          if (altCount > 0) {
+            console.log(`📊 Found ${altCount} documents in ${collectionName} collection`);
+            const altData = await altCollection.find({}).sort({ receivedAt: -1 }).toArray();
+            return res.json(altData);
+          }
+        } catch (err) {
+          console.log(`📊 Collection ${collectionName} not accessible`);
+        }
+      }
+      
+      res.json([]);
+    }
   } catch (error) {
     console.error('❌ Error fetching postbacks:', error);
     res.status(500).json({ error: 'Failed to fetch postbacks', details: error.message });
@@ -781,9 +847,51 @@ app.get('/api/server-info', (req, res) => {
       '/api/receive-postback',
       '/api/received-postbacks', 
       '/api/mongodb-status',
-      '/api/server-info'
+      '/api/server-info',
+      '/api/test-postback-creation'
     ]
   });
+});
+
+// Test endpoint to create a sample postback and see the structure
+app.post('/api/test-postback-creation', async (req, res) => {
+  try {
+    console.log('🧪 Creating test postback...');
+    
+    const testPostback = {
+      user_name: 'Test User ' + Date.now(),
+      user_email: 'test@example.com',
+      points: 100,
+      platform: 'Test Platform',
+      partner_id: 'test_partner',
+      transaction_id: 'txn_' + Date.now(),
+      offer_id: 'offer_test',
+      receivedAt: new Date().toISOString(),
+      ipAddress: '127.0.0.1',
+      userData: {
+        userName: 'Test User ' + Date.now(),
+        userEmail: 'test@example.com',
+        points: 100,
+        platform: 'Test Platform'
+      }
+    };
+    
+    const db = require('mongoose').connection.db;
+    const result = await db.collection('postbacks').insertOne(testPostback);
+    
+    console.log('🧪 Test postback created:', result.insertedId);
+    console.log('🧪 Test postback data:', JSON.stringify(testPostback, null, 2));
+    
+    res.json({
+      success: true,
+      message: 'Test postback created successfully',
+      postbackId: result.insertedId,
+      data: testPostback
+    });
+  } catch (error) {
+    console.error('❌ Error creating test postback:', error);
+    res.status(500).json({ error: 'Failed to create test postback', details: error.message });
+  }
 });
 
 // MongoDB connection status endpoint

@@ -2501,3 +2501,108 @@ body {
 }
 /* Truncate long offer/game/survey titles in the cards (single line with ellipsis) */
 
+/* Recent Activity Section Styles */
+.recent-activity-section {
+  margin-bottom: 40px;
+}
+
+.activity-carousel {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding: 10px 0;
+  scroll-behavior: smooth;
+}
+
+.activity-carousel::-webkit-scrollbar {
+  height: 6px;
+}
+
+.activity-carousel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.activity-carousel::-webkit-scrollbar-thumb {
+  background: rgba(0, 212, 255, 0.5);
+  border-radius: 3px;
+}
+
+.activity-card-display {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
+  border: 1px solid rgba(0, 212, 255, 0.3);
+  border-radius: 16px;
+  padding: 16px;
+  min-width: 200px;
+  backdrop-filter: blur(15px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  transition: all 0.3s ease;
+}
+
+.activity-card-display:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 35px rgba(0, 212, 255, 0.1);
+}
+
+.activity-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  margin-right: 12px;
+  border: 2px solid rgba(0, 212, 255, 0.3);
+}
+
+.activity-info {
+  flex: 1;
+}
+
+.activity-info h4 {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-info p {
+  margin: 0 0 6px 0;
+  font-size: 12px;
+  color: #a0a0a0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.activity-points {
+  font-size: 13px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #00d4ff, #0099cc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+@media (max-width: 768px) {
+  .activity-card-display {
+    min-width: 180px;
+    padding: 12px;
+  }
+  
+  .activity-avatar {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .activity-info h4 {
+    font-size: 13px;
+  }
+  
+  .activity-info p {
+    font-size: 11px;
+  }
+}
+

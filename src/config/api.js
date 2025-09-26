@@ -1,21 +1,7 @@
 // API Configuration for both development and production
 
 const getBackendUrl = () => {
-  // If explicitly set in environment variables, use that
-  if (process.env.REACT_APP_BACKEND_URL) {
-    console.log('🔧 Using REACT_APP_BACKEND_URL:', process.env.REACT_APP_BACKEND_URL);
-    return process.env.REACT_APP_BACKEND_URL;
-  }
-
-  if (process.env.REACT_APP_API_URL) {
-    console.log('🔧 Using REACT_APP_API_URL:', process.env.REACT_APP_API_URL);
-    return process.env.REACT_APP_API_URL;
-  }
-
-  // Auto-detect based on current environment
   const currentHost = window.location.hostname;
-  const currentProtocol = window.location.protocol;
-  
   console.log('🔧 Auto-detecting API URL. Current host:', currentHost);
   
   // Development environments

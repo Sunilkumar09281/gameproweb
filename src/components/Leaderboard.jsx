@@ -214,7 +214,7 @@ const Leaderboard = ({ showTitle = true, maxUsers = 10, isHomePage = false }) =>
             user={user}
             rank={user.rank || index + 1}
             isTopUser={index < 3}
-            onClick={handleUserClick}
+            onClick={isHomePage ? null : handleUserClick}
           />
         ))}
       </div>
