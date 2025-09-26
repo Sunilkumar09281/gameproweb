@@ -60,6 +60,12 @@ const PostbackLogs = () => {
       const postbacksArray = Array.isArray(data) ? data : [];
       console.log('📊 Postbacks array length:', postbacksArray.length);
       
+      // Debug first postback structure if available
+      if (postbacksArray.length > 0) {
+        console.log('📊 First postback structure:', postbacksArray[0]);
+        console.log('📊 First postback keys:', Object.keys(postbacksArray[0]));
+      }
+      
       setPostbacks(postbacksArray.reverse()); // Show newest first
       setError(null);
       console.log('✅ PostbackLogs updated with', postbacksArray.length, 'postbacks');
