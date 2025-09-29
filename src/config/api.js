@@ -7,7 +7,7 @@ const getBackendUrl = () => {
   // Development environments
   if (currentHost === 'localhost' || currentHost === '127.0.0.1') {
     console.log('🔧 Development environment detected');
-    return 'http://localhost:5000';
+    return 'http://localhost:5001';
   }
   
   // Production environments - ALWAYS use the correct backend URL

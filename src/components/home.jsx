@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import './home.css';
 import { Home, LayoutDashboard, User, LifeBuoy, Users, Gamepad, Lock, Handshake, Info, ClipboardList, Gift, X, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
-import { auth, provider } from '../firebase';  // adjust path if needed
-import { signInWithPopup } from 'firebase/auth';
 import LeaderPage from './leader.jsx';
 import ProfilePage from './profile.jsx';
 import SupportPage from './SupportPage.jsx';
@@ -10,9 +8,8 @@ import ReferEarnPage from './refer.jsx';
 import Footer from './Footer.jsx'; // adjust the path if needed
 import DashboardPage from './Dashboard.jsx';
 import Leaderboard from './Leaderboard.jsx';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, getDoc } from "firebase/firestore";
-import { db } from "../firebase";
+import Login from './Login.jsx';
+import { AuthProvider, useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config/api';
 
 // Recent Activity Section Component
@@ -1847,39 +1844,28 @@ const fetchAddedOffers = async () => {
   );
 }
 
-export default function App() {
+// Main App Component with MongoDB Authentication
+function AppContent() {
   const [currentPage, setCurrentPage] = useState('home');
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [userBalance, setUserBalance] = useState(0);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const { user, isAuthenticated, isAdmin, logout, loading } = useAuth();
 
   const handleProtectedClick = (action) => {
-    if (isLoggedIn) {
+    if (isAuthenticated()) {
       action();
     } else {
       setShowLoginModal(true);
     }
   };
-  
-  const handleLoginSuccess = (loggedInAsAdmin = false) => {
-    setIsLoggedIn(true);
-    setIsAdmin(loggedInAsAdmin);
-    setUserBalance(5);
-    setShowLoginModal(false);   
-    showContactMessage();
-  };
-  
+
   const handleLogout = () => {
-    setIsLoggedIn(false);
-    setIsAdmin(false);
-    setUserBalance(0);
+    logout();
     setCurrentPage('home');
   };
 
   const toggleLoginStatus = () => {
-    if (isLoggedIn) {
+    if (isAuthenticated()) {
       handleLogout();
     } else {
       setShowLoginModal(true);
@@ -1890,19 +1876,14 @@ export default function App() {
     setCurrentPage('home');
   };
 
-  const handleAddBalance = (amount) => {
-    setUserBalance(prevBalance => prevBalance + amount);
-    console.log(`Added $${amount} to balance. New balance: $${userBalance + amount}`);
-  };
-
-  const handleWithdrawBalance = (amount) => {
-    if (userBalance >= amount) {
-      setUserBalance(prevBalance => prevBalance - amount);
-      console.log(`Withdrew $${amount} from balance. New balance: $${userBalance - amount}`);
-    } else {
-      console.log("Insufficient balance for withdrawal.");
-    }
-  };
+  // Show loading screen while checking authentication
+  if (loading) {
+    return (
+      <div className="loading-screen">
+        <div className="loading-spinner">Loading...</div>
+      </div>
+    );
+  }
 
   let content;
   if (typeof currentPage === 'object' && currentPage.name === 'tasks') {
@@ -1919,7 +1900,20 @@ export default function App() {
         content = <LeaderPage onBack={handleBackToHome} />;
         break;
       case 'Dashboard':
-        content = <DashboardPage onBack={handleBackToHome} />;
+        // Only allow admin access to Dashboard
+        if (isAdmin()) {
+          content = <DashboardPage onBack={handleBackToHome} />;
+        } else {
+          content = (
+            <div className="access-denied">
+              <h2>🔒 Access Denied</h2>
+              <p>You need admin privileges to access the Dashboard.</p>
+              <button onClick={handleBackToHome} className="back-button">
+                Back to Home
+              </button>
+            </div>
+          );
+        }
         break;
       case 'support':
         content = <SupportPage onBack={handleBackToHome} />;
@@ -1937,34 +1931,40 @@ export default function App() {
       <CommonHeader
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
-        isLoggedIn={isLoggedIn}
+        isLoggedIn={isAuthenticated()}
         handleProtectedClick={handleProtectedClick}
         toggleLoginStatus={toggleLoginStatus}
-        userBalance={userBalance}
+        userBalance={user?.points || 0}
         openProfileModal={() => setShowProfileModal(true)}
-        isAdmin={isAdmin}
+        isAdmin={isAdmin()}
+        user={user}
       />
       <div className="main-content-area">
         {content}
       </div>
 
       {showLoginModal && (
-        <LoginSignupModal
-          onClose={() => setShowLoginModal(false)}
-          onLoginSuccess={handleLoginSuccess}
-        />
+        <Login onClose={() => setShowLoginModal(false)} />
       )}
 
-      {showProfileModal && isLoggedIn && (
+      {showProfileModal && isAuthenticated() && (
         <ProfileDetailModal
           onClose={() => setShowProfileModal(false)}
-          userName="shivama"
-          userAvatar="/icon21.png"
-          userBalance={userBalance}
-          onAddBalance={handleAddBalance}
-          onWithdrawBalance={handleWithdrawBalance}
+          userName={user?.username || 'User'}
+          userAvatar={user?.profilePicture || '/icon21.png'}
+          userBalance={user?.points || 0}
+          user={user}
         />
       )}
     </>
+  );
+}
+
+// Main App Component wrapped with AuthProvider
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

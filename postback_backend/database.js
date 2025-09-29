@@ -17,28 +17,52 @@ const connectDB = async () => {
   }
 };
 
-// User Schema
+// User Schema for storing user data
 const userSchema = new mongoose.Schema({
   userId: { type: String, required: true, unique: true },
   userName: { type: String, required: true },
-  userEmail: { type: String },
-  platform: { type: String, default: 'Unknown Platform' },
-  points: { type: Number, default: 0 },
-  totalEarnings: { type: Number, default: 0 },
-  completedTasks: { type: Number, default: 0 },
-  level: { type: Number, default: 1 },
+  userEmail: { type: String, required: true },
   profilePicture: { type: String },
+  platform: { type: String, required: true },
+  points: { type: Number, default: 0 },
+  level: { type: Number, default: 1 },
+  completedTasks: { type: Number, default: 0 },
   country: { type: String, default: 'Unknown' },
-  rank: { type: Number, default: 0 },
-  joinedAt: { type: Date, default: Date.now },
-  lastActivity: { type: Date, default: Date.now }
+  rank: { type: Number },
+  ipAddress: { type: String },
+  partnerName: { type: String },
+  uniqueClick: { type: String },
+  sessionId: { type: String },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
+});
+
+// GamePro User Schema for authentication
+const gameproUserSchema = new mongoose.Schema({
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true }, // Will be hashed
+  role: { 
+    type: String, 
+    enum: ['admin', 'simpleuser'], 
+    default: 'simpleuser' 
+  },
+  profilePicture: { type: String },
+  fullName: { type: String },
+  points: { type: Number, default: 0 },
+  level: { type: Number, default: 1 },
+  isActive: { type: Boolean, default: true },
+  lastLogin: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
 }, {
   timestamps: true
 });
 
 // Postback Schema
 const postbackSchema = new mongoose.Schema({
-  postbackId: { type: String, required: true, unique: true },
   method: { type: String, required: true },
   partnerId: { type: String, default: 'unknown' },
   partnerName: { type: String, default: 'Unknown Partner' },
@@ -101,6 +125,7 @@ const surveySchema = new mongoose.Schema({
 
 // Create Models
 const User = mongoose.model('User', userSchema);
+const GameProUser = mongoose.model('GameProUser', gameproUserSchema);
 const Postback = mongoose.model('Postback', postbackSchema);
 const Partner = mongoose.model('Partner', partnerSchema);
 const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
@@ -131,6 +156,7 @@ const UserData = mongoose.model('UserData', userDataSchema);
 module.exports = {
   connectDB,
   User,
+  GameProUser,
   Postback,
   Partner,
   UserData,
