@@ -12,9 +12,16 @@ app.get('/test', (req, res) => {
   res.json({ message: 'Basic route working' });
 });
 
-// Test parameter routes
-app.get('/test/:id', (req, res) => {
-  res.json({ message: 'Parameter route working', id: req.params.id });
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API endpoint working', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/server-info', (req, res) => {
+  res.json({
+    message: 'Test server is running',
+    timestamp: new Date().toISOString(),
+    version: 'test-1.0'
+  });
 });
 
 app.listen(PORT, () => {

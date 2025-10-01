@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
+import OfferTracker from "../utils/OfferTracker";
 
 const OurOffer = () => {
   const [offers, setOffers] = useState([]);
@@ -12,6 +13,20 @@ const OurOffer = () => {
       .catch(() => setOffers([]))
       .finally(() => setLoading(false));
   }, []);
+
+  // Handle offer click with automatic completion tracking
+  const handleOfferClick = (offer, isOriginalLink = false) => {
+    const offerUrl = isOriginalLink ? offer.link : `/go/${offer.id}`;
+    const rewardAmount = offer.reward || 10; // Default $10 if no reward specified
+    
+    // Use the new tracking method that logs clicks and completions
+    OfferTracker.trackOfferClickAndComplete(
+      offer.title, 
+      offerUrl, 
+      'Gaming Platform', 
+      rewardAmount
+    );
+  };
 
   return (
     <div className="our-offer-page">
@@ -28,13 +43,19 @@ const OurOffer = () => {
               <h3>{offer.title}</h3>
               <p>Genre: {offer.genre}</p>
               <p>Rating: {offer.rating}</p>
-              <a href={`/go/${offer.id}`} target="_blank" rel="noopener noreferrer" className="btn btn-primary">
+              <button 
+                onClick={() => handleOfferClick(offer, false)}
+                className="btn btn-primary"
+              >
                 Go to Offer
-              </a>
+              </button>
               <br />
-              <a href={offer.link} target="_blank" rel="noopener noreferrer" className="btn btn-secondary">
+              <button 
+                onClick={() => handleOfferClick(offer, true)}
+                className="btn btn-secondary"
+              >
                 Original Link
-              </a>
+              </button>
             </div>
           ))}
         </div>

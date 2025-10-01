@@ -1,0 +1,343 @@
+/* Offer Logs Styles */
+.offer-logs-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+  min-height: 100vh;
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.offer-logs-header {
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.offer-logs-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  margin: 0 0 10px 0;
+  background: linear-gradient(135deg, #00d4ff, #0891b2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.offer-logs-header p {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 16px;
+  margin: 0;
+}
+
+/* Statistics Section */
+.statistics-section {
+  margin-bottom: 30px;
+}
+
+.statistics-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.statistics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.stats-card {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 16px;
+  padding: 24px;
+  text-align: center;
+  backdrop-filter: blur(10px);
+  transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+  border-color: rgba(0, 212, 255, 0.4);
+}
+
+.stats-card h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: rgba(148, 163, 184, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stats-number {
+  font-size: 36px;
+  font-weight: 800;
+  color: #00d4ff;
+  margin-bottom: 8px;
+}
+
+.stats-reward {
+  font-size: 14px;
+  color: rgba(34, 197, 94, 0.9);
+  font-weight: 500;
+}
+
+/* Filters Section */
+.filters-section {
+  margin-bottom: 30px;
+}
+
+.filters-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid rgba(51, 65, 85, 0.5);
+  border-radius: 16px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.filter-group input,
+.filter-group select {
+  background: rgba(51, 65, 85, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.6);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: #ffffff;
+  font-size: 14px;
+  transition: all 0.3s ease;
+}
+
+.filter-group input:focus,
+.filter-group select:focus {
+  outline: none;
+  border-color: rgba(0, 212, 255, 0.6);
+  box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.15);
+}
+
+.filter-group option {
+  background: #1e293b;
+  color: #ffffff;
+}
+
+/* Logs Section */
+.logs-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #ffffff;
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  font-size: 18px;
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.logs-table-container {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 16px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  margin-bottom: 20px;
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.logs-table thead {
+  background: rgba(51, 65, 85, 0.8);
+}
+
+.logs-table th {
+  padding: 16px 12px;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.6);
+}
+
+.logs-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.4);
+  font-size: 14px;
+  vertical-align: top;
+}
+
+.logs-table tbody tr:hover {
+  background: rgba(51, 65, 85, 0.4);
+}
+
+.user-info strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.user-email {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: 2px;
+}
+
+.offer-info strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.offer-url {
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: 2px;
+  word-break: break-all;
+}
+
+.reward-amount {
+  font-weight: 700;
+  color: #22c55e;
+  font-size: 16px;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-clicked {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.status-completed {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-abandoned {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.device-info {
+  font-size: 13px;
+}
+
+.browser-info {
+  font-size: 11px;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: 2px;
+}
+
+.ip-address {
+  font-family: 'Monaco', 'Menlo', monospace;
+  font-size: 12px;
+  color: rgba(148, 163, 184, 0.9);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  margin-top: 30px;
+}
+
+.pagination button {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(51, 65, 85, 0.6);
+  border-radius: 8px;
+  padding: 10px 20px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.pagination button:hover:not(:disabled) {
+  background: rgba(51, 65, 85, 0.8);
+  border-color: rgba(0, 212, 255, 0.5);
+  transform: translateY(-2px);
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-info {
+  color: rgba(148, 163, 184, 0.9);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+  .offer-logs-container {
+    padding: 15px;
+  }
+  
+  .statistics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .logs-table-container {
+    overflow-x: auto;
+  }
+  
+  .logs-table {
+    min-width: 800px;
+  }
+  
+  .logs-table th,
+  .logs-table td {
+    padding: 12px 8px;
+    font-size: 12px;
+  }
+  
+  .pagination {
+    flex-direction: column;
+    gap: 15px;
+  }
+}

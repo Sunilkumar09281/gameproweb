@@ -150,11 +150,6 @@ const Login = ({ onClose }) => {
           </p>
         </div>
 
-        <div className="demo-accounts">
-          <h4>Demo Accounts:</h4>
-          <p><strong>Admin:</strong> admin / admin123</p>
-          <p><strong>User:</strong> user / user123</p>
-        </div>
       </div>
     </div>
   );

@@ -8,6 +8,7 @@ import axios from "axios";
 import PostbackDocumentation from './PostbackDocumentation';
 import PartnerManagement from './PartnerManagement';
 import PostbackLogs from './PostbackLogs';
+import OfferLogs from './OfferLogs';
 import SurveyProvider from './SurveyProvider';
 import SurveyLink from './SurveyLink';
 import { API_ENDPOINTS } from '../config/api';
@@ -327,7 +328,15 @@ useEffect(() => {
         throw new Error(`HTTP error! status: ${res.status}`);
       }
       const data = await res.json();
-      setReceivedPostbacks(data);
+      console.log('📥 Postbacks API response:', data);
+      
+      // Extract postbacks array from response
+      if (data.success && Array.isArray(data.postbacks)) {
+        setReceivedPostbacks(data.postbacks);
+      } else {
+        // Fallback for different response formats
+        setReceivedPostbacks(Array.isArray(data) ? data : []);
+      }
     } catch (err) {
       console.error('Error fetching postbacks:', err);
       setErrorPostbacks(`Failed to fetch postbacks: ${err.message}`);
@@ -1458,6 +1467,8 @@ setSessions(arr);
         return <PartnerManagement />;
       case 'postback-logs':
         return <PostbackLogs />;
+      case 'offer-logs':
+        return <OfferLogs />;
       case 'postback-tester':
         return (
           <div style={{ maxWidth: 700, margin: '2rem auto', padding: 24, background: '#fff', borderRadius: 8, boxShadow: '0 2px 8px #eee' }}>
@@ -1965,6 +1976,9 @@ setSessions(arr);
         </li>
         <li className={currentView === 'postback-logs' ? 'active' : ''} onClick={() => handleNavigationClick('postback-logs')}>
             Postback Activity Logs
+        </li>
+        <li className={currentView === 'offer-logs' ? 'active' : ''} onClick={() => handleNavigationClick('offer-logs')}>
+            📊 Offer Logs
         </li>
           <li className={currentView === 'postback-tester' ? 'active' : ''} onClick={() => handleNavigationClick('postback-tester')}>
             Postback URL Tester

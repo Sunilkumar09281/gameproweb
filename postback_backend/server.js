@@ -8,7 +8,7 @@ const bodyParser = require('body-parser');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const mongoose = require('mongoose');
-const { connectDB, User, GameProUser, Postback, Partner, UserData } = require('./database');
+const { connectDB, User, GameProUser, Postback, Partner, UserData, UserActivity, UserReferral, OfferLog } = require('./database');
 const rateLimit = require('express-rate-limit');
 const proxyRouter = require('./proxy');
 const multer = require('multer');
@@ -44,6 +44,11 @@ const fetchHistoryFile = path.join(__dirname, 'fetch_history.json');
 const emailConfigFile = path.join(__dirname, 'email_config.json');
 const surveyProvidersFile = path.join(__dirname, 'survey_providers.json');
 const surveyLinksFile = path.join(__dirname, 'survey_links.json');
+const API_KEYS_FILE = apiKeysFile;
+const PLAY_RESPONSES_FILE = playResponsesFile;
+const FETCH_HISTORY_FILE = fetchHistoryFile;
+const EMAIL_CONFIG_FILE = emailConfigFile;
+const SCHEDULES_FILE = schedulesFile;
 
 // Load/save postbacks
 async function loadPostbacks() {
@@ -251,26 +256,16 @@ const corsOptions = {
       // Add any other domains you might use
       /\.onrender\.com$/,
       /\.netlify\.app$/,
-      /\.vercel\.app$/,
-      /\.herokuapp\.com$/
     ];
     
-    // Check if origin is in allowed list or matches regex patterns
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (typeof allowedOrigin === 'string') {
-        return origin === allowedOrigin;
-      } else if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return false;
-    });
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
     
-    if (isAllowed) {
-      console.log(`CORS allowed origin: ${origin}`);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      console.log('CORS allowed origin:', origin);
       callback(null, true);
     } else {
-      console.log(`CORS blocked origin: ${origin}`);
-      console.log('Allowed origins:', allowedOrigins);
+      console.log('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -1106,6 +1101,284 @@ app.post('/api/auth/verify', authenticateToken, (req, res) => {
       role: req.user.role 
     } 
   });
+});
+
+// Update user profile
+app.put('/api/auth/update-profile', authenticateToken, async (req, res) => {
+  try {
+    const { fullName, email, profilePicture } = req.body;
+    const userId = req.user.userId;
+
+    const updateData = {};
+    if (fullName) updateData.fullName = fullName;
+    if (email) updateData.email = email;
+    if (profilePicture) updateData.profilePicture = profilePicture;
+    updateData.updatedAt = new Date();
+
+    const updatedUser = await GameProUser.findByIdAndUpdate(
+      userId,
+      updateData,
+      { new: true, select: '-password' }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('✅ Profile updated for user:', updatedUser.username);
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: {
+        id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        role: updatedUser.role,
+        profilePicture: updatedUser.profilePicture,
+        points: updatedUser.points,
+        level: updatedUser.level,
+        isActive: updatedUser.isActive,
+        lastLogin: updatedUser.lastLogin,
+        createdAt: updatedUser.createdAt,
+        updatedAt: updatedUser.updatedAt
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Profile update error:', error);
+    res.status(500).json({ error: 'Failed to update profile', details: error.message });
+  }
+});
+
+// Get user statistics
+app.get('/api/auth/user-stats', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Get current user data
+    const user = await GameProUser.findById(userId).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Calculate statistics
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Count completed offers
+    const completedOffers = await UserActivity.countDocuments({
+      userId: userId,
+      activityType: 'offer_completed',
+      status: 'completed'
+    });
+
+    // Count total earnings
+    const totalEarnings = await UserActivity.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          activityType: 'earning',
+          status: 'completed'
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    // Count earnings in last 30 days
+    const recentEarnings = await UserActivity.aggregate([
+      {
+        $match: {
+          userId: new mongoose.Types.ObjectId(userId),
+          activityType: 'earning',
+          status: 'completed',
+          createdAt: { $gte: thirtyDaysAgo }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: '$amount' }
+        }
+      }
+    ]);
+
+    // Count referrals
+    const referrals = await UserReferral.countDocuments({
+      referrerId: userId,
+      status: { $in: ['active', 'completed'] }
+    });
+
+    const stats = {
+      totalEarnings: user.points || (totalEarnings[0]?.total || 0),
+      completedOffers: completedOffers,
+      usersReferred: referrals,
+      earningsLast30Days: recentEarnings[0]?.total || 0
+    };
+
+    console.log('✅ User stats retrieved for:', user.username, stats);
+
+    res.json({
+      success: true,
+      stats: stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching user stats:', error);
+    res.status(500).json({ error: 'Failed to fetch user statistics', details: error.message });
+  }
+});
+
+// Upload avatar endpoint
+app.post('/api/auth/upload-avatar', authenticateToken, upload.single('profilePicture'), async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // In a real app, you'd upload to cloud storage (AWS S3, Cloudinary, etc.)
+    // For now, we'll create a URL for the uploaded file
+    const profilePictureUrl = `/uploads/${req.file.filename}`;
+
+    const updatedUser = await GameProUser.findByIdAndUpdate(
+      userId,
+      { 
+        profilePicture: profilePictureUrl,
+        updatedAt: new Date()
+      },
+      { new: true, select: '-password' }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    console.log('✅ Avatar uploaded for user:', updatedUser.username);
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      profilePicture: profilePictureUrl,
+      user: {
+        id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        role: updatedUser.role,
+        profilePicture: updatedUser.profilePicture,
+        points: updatedUser.points,
+        level: updatedUser.level
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Avatar upload error:', error);
+    res.status(500).json({ error: 'Failed to upload avatar', details: error.message });
+  }
+});
+
+// Create sample user activities (for testing)
+app.post('/api/auth/create-sample-activities', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.userId;
+    
+    // Create sample activities
+    const sampleActivities = [
+      {
+        userId: userId,
+        activityType: 'offer_completed',
+        offerName: 'Complete PUBG Mobile Level 10',
+        offerPartner: 'Gaming Partner',
+        amount: 50,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000) // 5 days ago
+      },
+      {
+        userId: userId,
+        activityType: 'earning',
+        amount: 50,
+        status: 'completed',
+        createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
+      },
+      {
+        userId: userId,
+        activityType: 'offer_completed',
+        offerName: 'Install and Play Candy Crush',
+        offerPartner: 'Mobile Games Inc',
+        amount: 25,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // 10 days ago
+      },
+      {
+        userId: userId,
+        activityType: 'earning',
+        amount: 25,
+        status: 'completed',
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+      },
+      {
+        userId: userId,
+        activityType: 'offer_completed',
+        offerName: 'Sign up for Netflix Trial',
+        offerPartner: 'Streaming Services',
+        amount: 100,
+        status: 'completed',
+        completedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 days ago
+      },
+      {
+        userId: userId,
+        activityType: 'earning',
+        amount: 100,
+        status: 'completed',
+        createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000)
+      }
+    ];
+
+    // Create sample referrals
+    const sampleReferrals = [
+      {
+        referrerId: userId,
+        referredUserId: new mongoose.Types.ObjectId(),
+        referralCode: 'REF001',
+        status: 'active',
+        bonusEarned: 20
+      },
+      {
+        referrerId: userId,
+        referredUserId: new mongoose.Types.ObjectId(),
+        referralCode: 'REF002',
+        status: 'completed',
+        bonusEarned: 30
+      }
+    ];
+
+    await UserActivity.insertMany(sampleActivities);
+    await UserReferral.insertMany(sampleReferrals);
+
+    // Update user points
+    await GameProUser.findByIdAndUpdate(userId, {
+      points: 175, // Total from sample activities
+      updatedAt: new Date()
+    });
+
+    console.log('✅ Sample activities created for user:', req.user.username);
+
+    res.json({
+      message: 'Sample activities created successfully',
+      activitiesCreated: sampleActivities.length,
+      referralsCreated: sampleReferrals.length
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating sample activities:', error);
+    res.status(500).json({ error: 'Failed to create sample activities', details: error.message });
+  }
 });
 
 // Create admin user (for initial setup)
@@ -2763,6 +3036,336 @@ app.get('/api/surveys/active', async (req, res) => {
   } catch (error) {
     console.error('Error fetching active surveys:', error);
     res.status(500).json({ error: 'Failed to fetch active surveys' });
+  }
+});
+
+// ===== POSTBACK PROCESSING SYSTEM =====
+
+// Receive postback (webhook endpoint for external services)
+app.post('/api/postback', async (req, res) => {
+  try {
+    console.log('📥 Received postback:', req.body);
+    
+    const {
+      user_id,
+      offer_id,
+      offer_name,
+      payout,
+      currency = 'USD',
+      status = 'completed',
+      conversion_id,
+      click_id,
+      sub_id,
+      source,
+      partner
+    } = req.body;
+
+    if (!user_id || !offer_id) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: user_id and offer_id' 
+      });
+    }
+
+    // Create postback record using proper schema from database.js
+    const postback = new Postback({
+      method: 'POST',
+      partnerId: partner || 'unknown',
+      partnerName: partner || 'Unknown Partner',
+      userData: {
+        userId: user_id,
+        userName: user_id, // Will be updated when user is found
+        platform: 'postback'
+      },
+      query: req.query,
+      body: {
+        user_id,
+        offer_id,
+        offer_name: offer_name || `Offer ${offer_id}`,
+        payout: parseFloat(payout) || 0,
+        currency,
+        status,
+        conversion_id: conversion_id || '',
+        click_id: click_id || '',
+        sub_id: sub_id || '',
+        source: source || 'external'
+      },
+      headers: req.headers,
+      ip: req.ip || req.connection.remoteAddress || 'Unknown',
+      receivedAt: new Date()
+    });
+
+    await postback.save();
+
+    // If status is completed, process the completion
+    if (status === 'completed' && payout > 0) {
+      await processPostbackCompletion(postback);
+    }
+
+    console.log(`✅ Postback saved: ${user_id} - ${offer_name} - $${payout}`);
+    res.json({ 
+      success: true, 
+      message: 'Postback received successfully',
+      postback_id: postback._id
+    });
+
+  } catch (error) {
+    console.error('❌ Error processing postback:', error);
+    res.status(500).json({ error: 'Failed to process postback', details: error.message });
+  }
+});
+
+// Get received postbacks (for admin dashboard)
+app.get('/api/received-postbacks', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const status = req.query.status;
+    const user_id = req.query.user_id;
+
+    // Build filter
+    const filter = {};
+    if (status) filter['body.status'] = status;
+    if (user_id) filter['body.user_id'] = user_id;
+
+    // Get postbacks with pagination
+    const postbacks = await Postback.find(filter)
+      .sort({ receivedAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const totalPostbacks = await Postback.countDocuments(filter);
+
+    // Get statistics
+    const stats = {
+      totalPostbacks: await Postback.countDocuments(),
+      completedPostbacks: await Postback.countDocuments({ 'body.status': 'completed' }),
+      pendingPostbacks: await Postback.countDocuments({ 'body.status': 'pending' }),
+      totalPayout: await Postback.aggregate([
+        { $match: { 'body.status': 'completed' } },
+        { $group: { _id: null, total: { $sum: '$body.payout' } } }
+      ]).then(result => result[0]?.total || 0)
+    };
+
+    // Transform postbacks for frontend compatibility
+    const transformedPostbacks = postbacks.map(pb => ({
+      _id: pb._id,
+      user_id: pb.body?.user_id || pb.userData?.userId,
+      offer_id: pb.body?.offer_id,
+      offer_name: pb.body?.offer_name,
+      payout: pb.body?.payout || 0,
+      status: pb.body?.status || 'unknown',
+      partner: pb.partnerName,
+      source: pb.body?.source,
+      ip_address: pb.ip,
+      created_at: pb.receivedAt,
+      processed: true // Assume processed if in database
+    }));
+
+    res.json({
+      success: true,
+      postbacks: transformedPostbacks,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalPostbacks / limit),
+        totalPostbacks,
+        limit
+      },
+      statistics: stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching postbacks:', error);
+    res.status(500).json({ error: 'Failed to fetch postbacks', details: error.message });
+  }
+});
+
+// Process postback completion (internal function)
+async function processPostbackCompletion(postback) {
+  try {
+    const postbackData = postback.body;
+    console.log(`🔄 Processing completion for postback: ${postbackData.user_id} - ${postbackData.offer_name}`);
+
+    // Find user by user_id (could be username or MongoDB _id)
+    let user = await GameProUser.findById(postbackData.user_id);
+    if (!user) {
+      user = await GameProUser.findOne({ username: postbackData.user_id });
+    }
+
+    if (!user) {
+      console.log(`⚠️ User not found for postback: ${postbackData.user_id}`);
+      return;
+    }
+
+    // Update user points
+    const pointsEarned = parseFloat(postbackData.payout);
+    user.points = (user.points || 0) + pointsEarned;
+    user.level = Math.floor(user.points / 100) + 1;
+    await user.save();
+
+    // Create UserActivity record
+    const userActivity = new UserActivity({
+      userId: user._id,
+      activityType: 'offer_completed',
+      offerName: postbackData.offer_name,
+      offerPartner: postback.partnerName,
+      amount: pointsEarned,
+      status: 'completed',
+      metadata: {
+        postbackId: postback._id,
+        offerId: postbackData.offer_id,
+        conversionId: postbackData.conversion_id,
+        clickId: postbackData.click_id,
+        source: postbackData.source,
+        completionMethod: 'postback'
+      },
+      completedAt: new Date()
+    });
+
+    await userActivity.save();
+
+    // Update or create OfferLog using proper schema from database.js
+    let offerLog = await OfferLog.findOne({
+      userId: user._id,
+      offerName: postbackData.offer_name,
+      status: { $in: ['clicked', 'pending'] }
+    });
+
+    if (offerLog) {
+      // Update existing log
+      offerLog.status = 'completed';
+      offerLog.completedAt = new Date();
+      offerLog.completionTime = Math.floor((new Date() - offerLog.clickedAt) / 1000);
+      offerLog.rewardAmount = pointsEarned;
+      offerLog.metadata = {
+        ...offerLog.metadata,
+        postbackId: postback._id,
+        conversionId: postbackData.conversion_id,
+        completionMethod: 'postback'
+      };
+      offerLog.updatedAt = new Date();
+      await offerLog.save();
+    } else {
+      // Create new log entry using proper schema
+      offerLog = new OfferLog({
+        userId: user._id,
+        username: user.username,
+        offerName: postbackData.offer_name,
+        offerUrl: '', // Not available from postback
+        offerPartner: postback.partnerName || 'External Provider',
+        rewardAmount: pointsEarned,
+        clickedAt: postback.receivedAt,
+        completedAt: new Date(),
+        completionTime: 0,
+        status: 'completed',
+        userIP: postback.ip,
+        userAgent: postback.headers?.['user-agent'] || 'Unknown',
+        referrer: 'Postback',
+        metadata: {
+          source: 'postback',
+          device: 'Unknown',
+          browser: 'Unknown',
+          country: 'Unknown',
+          sessionId: '',
+          postbackId: postback._id,
+          offerId: postbackData.offer_id,
+          conversionId: postbackData.conversion_id,
+          clickId: postbackData.click_id,
+          completionMethod: 'postback'
+        },
+        adminNotes: `Completed via postback from ${postback.partnerName}`,
+        flagged: false
+      });
+      await offerLog.save();
+    }
+
+    console.log(`✅ Postback processed successfully: ${user.username} earned $${pointsEarned} from "${postbackData.offer_name}"`);
+
+  } catch (error) {
+    console.error('❌ Error processing postback completion:', error);
+  }
+}
+
+// Create test postback (for testing)
+app.post('/api/test-postback', async (req, res) => {
+  try {
+    const testPostback = {
+      user_id: 'user', // Default test user
+      offer_id: 'test_offer_' + Date.now(),
+      offer_name: 'Test Survey Completion',
+      payout: 25.50,
+      currency: 'USD',
+      status: 'completed',
+      conversion_id: 'conv_' + Date.now(),
+      click_id: 'click_' + Date.now(),
+      source: 'test_system'
+    };
+
+    // Send postback to our own endpoint
+    const response = await axios.post(`http://localhost:${PORT}/api/postback`, testPostback);
+
+    res.json({
+      success: true,
+      message: 'Test postback created and processed',
+      testPostback,
+      result: response.data
+    });
+
+  } catch (error) {
+    console.error('❌ Error creating test postback:', error);
+    res.status(500).json({ error: 'Failed to create test postback', details: error.message });
+  }
+});
+
+// ===== OFFER LOGS ENDPOINTS =====
+
+// Get offer logs (admin only)
+app.get('/api/admin/offer-logs', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const status = req.query.status;
+    const username = req.query.username;
+
+    // Build filter
+    const filter = {};
+    if (status) filter.status = status;
+    if (username) filter.username = new RegExp(username, 'i');
+
+    // Get logs with pagination
+    const logs = await OfferLog.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    const totalLogs = await OfferLog.countDocuments(filter);
+
+    // Get statistics
+    const stats = {
+      totalLogs: await OfferLog.countDocuments(),
+      clickedOffers: await OfferLog.countDocuments({ status: 'clicked' }),
+      completedOffers: await OfferLog.countDocuments({ status: 'completed' }),
+      abandonedOffers: await OfferLog.countDocuments({ status: 'abandoned' }),
+      totalRewards: await OfferLog.aggregate([
+        { $match: { status: 'completed' } },
+        { $group: { _id: null, total: { $sum: '$rewardAmount' } } }
+      ]).then(result => result[0]?.total || 0)
+    };
+
+    res.json({
+      success: true,
+      logs,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalLogs / limit),
+        totalLogs,
+        limit
+      },
+      statistics: stats
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching offer logs:', error);
+    res.status(500).json({ error: 'Failed to fetch offer logs', details: error.message });
   }
 });
 

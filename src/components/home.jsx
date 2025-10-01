@@ -2,13 +2,14 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import './home.css';
 import { Home, LayoutDashboard, User, LifeBuoy, Users, Gamepad, Lock, Handshake, Info, ClipboardList, Gift, X, Wallet, TrendingUp, TrendingDown } from 'lucide-react';
 import LeaderPage from './leader.jsx';
-import ProfilePage from './profile.jsx';
+import ProfilePage from './ProfilePage.jsx';
 import SupportPage from './SupportPage.jsx';
 import ReferEarnPage from './refer.jsx';
 import Footer from './Footer.jsx'; // adjust the path if needed
 import DashboardPage from './Dashboard.jsx';
 import Leaderboard from './Leaderboard.jsx';
 import Login from './Login.jsx';
+import OfferTracker from '../utils/OfferTracker';
 import { AuthProvider, useAuth } from '../context/AuthContext';
 import { API_ENDPOINTS } from '../config/api';
 
@@ -72,43 +73,89 @@ const RecentActivitySection = ({ handleProtectedClick }) => {
   );
 };
 
-// paste/replace the existing handleGameClick in src/components/home.jsx
+// Game/Offer click handler for tracking with new OfferTracker system
 const handleGameClick = async (game) => {
   try {
-    // try firebase auth userId if available
-    const userId = (typeof auth !== 'undefined' && auth?.currentUser?.uid) || window.localStorage.getItem('uid') || null;
+    // Check if user is authenticated
+    const token = localStorage.getItem('gamepro_token'); // Fixed: use gamepro_token
+    if (!token) {
+      console.log('User not authenticated, skipping offer tracking');
+      return;
+    }
 
-    const payload = {
-      gameId: game.id ?? game._id ?? String(game.title),
-      gameTitle: game.title ?? game.name ?? null,
-      userId,
-      page: window.location.pathname,
-      extra: {
-        type: game.type ?? null,
-        value: game.value ?? game.displayValue ?? null
-      },
-      timestamp: new Date().toISOString(),
-    };
-
-    // Use environment variable instead of hardcoded localhost
-    console.log('Tracking to:', `${API_ENDPOINTS.API_BASE_URL}/api/track-click`);
+    // Determine if this is an offer or game
+    const isOffer = game.type === 'offers' || game.type === 'surveys' || game.type === 'watch-videos';
     
-    fetch(`${API_ENDPOINTS.API_BASE_URL}/api/track-click`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    })
-    .then(response => {
-      console.log('Tracking response status:', response.status);
-      return response.json();
-    })
-    .then(data => {
-      console.log("Tracked successfully:", payload.gameTitle, data);
-    })
-    .catch(err => console.warn("Tracking failed:", err));
+    if (isOffer) {
+      // Use new OfferTracker for offers and surveys
+      const offerName = game.title || game.name || 'Unknown Offer';
+      const offerUrl = game.link || game.url || `${window.location.origin}/go/${game.id}`;
+      const offerPartner = game.partner || game.provider || 'Gaming Platform';
+      const rewardAmount = parseFloat(game.reward || game.value || game.displayValue || 10);
+
+      console.log('🎯 Tracking offer/survey click:', offerName);
+      
+      // Check if this is specifically a survey
+      if (game.type === 'surveys') {
+        // Use survey-specific tracking
+        const logId = await OfferTracker.trackSurveyClickAndComplete(
+          game.id, 
+          offerName, 
+          offerUrl, 
+          rewardAmount
+        );
+        
+        if (logId) {
+          console.log('✅ Survey click tracked with ID:', logId);
+        }
+      } else {
+        // Use regular offer tracking
+        const logId = await OfferTracker.trackOfferClick(offerName, offerUrl, offerPartner, rewardAmount);
+        
+        if (logId) {
+          console.log('✅ Offer click tracked with ID:', logId);
+          
+          // Simulate completion after 5 seconds (when user would complete the offer)
+          setTimeout(async () => {
+            await OfferTracker.completeOffer(offerName, offerPartner, rewardAmount, logId);
+          }, 5000);
+        }
+      }
+    } else {
+      // Keep old tracking for games (non-offers)
+      const userId = window.localStorage.getItem('gamepro_user_id') || 'anonymous_' + Date.now();
+
+      const payload = {
+        gameId: game.id ?? game._id ?? String(game.title),
+        gameTitle: game.title ?? game.name ?? null,
+        userId,
+        page: window.location.pathname,
+        extra: {
+          type: game.type ?? null,
+          value: game.value ?? game.displayValue ?? null
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      console.log('🎮 Tracking game click:', payload.gameTitle);
+      
+      fetch(`${API_ENDPOINTS.API_BASE_URL}/api/track-click`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      })
+      .then(response => {
+        console.log('Game tracking response status:', response.status);
+        return response.json();
+      })
+      .then(data => {
+        console.log("✅ Game tracked successfully:", payload.gameTitle, data);
+      })
+      .catch(err => console.warn("❌ Game tracking failed:", err));
+    }
 
   } catch (err) {
-    console.error("Tracking failed (outer):", err);
+    console.error("❌ Click tracking failed (outer):", err);
   }
 };
 
@@ -134,157 +181,6 @@ const showContactMessage = () => {
   document.body.appendChild(messageBox);
 };
 
-function LoginSignupModal({ onClose, onLoginSuccess }) {
-  const [isLogin, setIsLogin] = useState(true);
-  const [isAdminSignup, setIsAdminSignup] = useState(false);
-
-  const handleAuthAction = async (e) => {
-    e.preventDefault();
-
-    const email = e.target.email.value;
-    const password = e.target.password.value;
-
-    try {
-      if (isLogin) {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const userDoc = await getDoc(doc(db, "users", userCredential.user.uid));
-        const isAdmin = userDoc.exists() && userDoc.data().isAdmin === true;
-
-        onLoginSuccess(isAdmin);
-      } else {
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        await setDoc(doc(db, "users", user.uid), {
-          email: user.email,
-          isAdmin: isAdminSignup,
-          createdAt: new Date()
-        });
-
-        onLoginSuccess(isAdminSignup);
-      }
-
-      onClose();
-    } catch (error) {
-      console.error("Auth error:", error);
-      alert(error.message);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-
-      let isAdmin = false;
-
-      if (!userDoc.exists()) {
-        await setDoc(userRef, {
-          email: user.email,
-          isAdmin: isAdminSignup,
-          createdAt: new Date()
-        });
-        isAdmin = isAdminSignup;
-      } else {
-        isAdmin = userDoc.data().isAdmin === true;
-      }
-
-      onLoginSuccess(isAdmin);
-      onClose();
-    } catch (error) {
-      console.error("Google login failed", error);
-
-      const messageBox = document.createElement('div');
-      messageBox.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
-      messageBox.innerHTML = `
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm relative">
-          <h2 class="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">Error</h2>
-          <p class="text-center text-gray-700 dark:text-gray-300 mb-6">Google login failed. Please try again.</p>
-          <button class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-300" onclick="this.parentNode.parentNode.remove()">OK</button>
-        </div>
-      `;
-      document.body.appendChild(messageBox);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm relative">
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          aria-label="Close"
-        >
-          <X size={24} />
-        </button>
-        <h2 className="text-2xl font-bold text-center mb-6 text-gray-900 dark:text-white">
-          {isLogin ? 'Login' : 'Sign Up'}
-        </h2>
-        <form onSubmit={handleAuthAction} className="space-y-4">
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              id="email"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="your@example.com"
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="********"
-              required
-            />
-          </div>
-          {!isLogin && (
-            <>
-              <div>
-                <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Confirm Password
-                </label>
-                <input
-                  type="password"
-                  id="confirm-password"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                  placeholder="********"
-                  required
-                />
-              </div>
-            </>
-          )}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-md transition duration-300"
-          >
-            {isLogin ? 'Login' : 'Sign Up'}
-          </button>
-        </form>
-        <p className="mt-4 text-center text-sm text-gray-600 dark:text-gray-300">
-          {isLogin ? "Don't have an account?" : "Already have an account?"}{' '}
-          <button
-            type="button"
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-200 font-medium"
-          >
-            {isLogin ? 'Sign Up' : 'Login'}
-          </button>
-        </p>
-      </div>
-    </div>
-  );
-}
 
 function ProfileDetailModal({ onClose, userName, userBalance, userAvatar, onAddBalance, onWithdrawBalance }) {
   const canWithdraw = userBalance >= 10;
@@ -1399,7 +1295,7 @@ function TasksListingPage({ onBack, initialCategory = 'all', handleProtectedClic
 }
 
 
-const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtectedClick, toggleLoginStatus, userBalance, openProfileModal, isAdmin }) => {
+const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtectedClick, toggleLoginStatus, userBalance, openProfileModal, isAdmin, user }) => {
   return (
     <header className="home-header">
       <div className="home-header-left">
@@ -1438,9 +1334,9 @@ const CommonHeader = ({ currentPage, setCurrentPage, isLoggedIn, handleProtected
         </div>
         <div className="user-profile" onClick={openProfileModal}>
           <div className="user-avatar">
-            <img src="/icon21.png" alt="User Avatar" width={24} height={24} />
+            <img src={isLoggedIn ? (user?.profilePicture || '/icon21.png') : '/icon21.png'} alt="User Avatar" width={24} height={24} />
           </div>
-          <span className="user-name">{isLoggedIn ? 'shivama' : 'Guest'}</span>
+          <span className="user-name">{isLoggedIn ? (user?.username || user?.fullName || 'User') : 'Guest'}</span>
         </div>
         <button
           onClick={toggleLoginStatus}
@@ -1557,7 +1453,7 @@ function HomePageContent({ setCurrentPage, currentPage, handleProtectedClick }) 
 
   useEffect(() => {
     let cancelled = false;
-    const url = 'http://localhost:5000/api/games';
+    const url = `${API_ENDPOINTS.API_BASE_URL}/api/games`; // Fixed: use API_ENDPOINTS instead of hardcoded URL
     
     // Fetch surveys
     fetchSurveys();

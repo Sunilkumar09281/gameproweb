@@ -37,11 +37,13 @@ export const AuthProvider = ({ children }) => {
           } else {
             // Token is invalid, remove it
             localStorage.removeItem('gamepro_token');
+            localStorage.removeItem('gamepro_user_id');
             setToken(null);
           }
         } catch (error) {
           console.error('Auth check failed:', error);
           localStorage.removeItem('gamepro_token');
+          localStorage.removeItem('gamepro_user_id');
           setToken(null);
         }
       }
@@ -67,6 +69,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setToken(data.token);
         localStorage.setItem('gamepro_token', data.token);
+        localStorage.setItem('gamepro_user_id', data.user.id);
         return { success: true, user: data.user };
       } else {
         return { success: false, error: data.error };
@@ -93,6 +96,7 @@ export const AuthProvider = ({ children }) => {
         setUser(data.user);
         setToken(data.token);
         localStorage.setItem('gamepro_token', data.token);
+        localStorage.setItem('gamepro_user_id', data.user.id);
         return { success: true, user: data.user };
       } else {
         return { success: false, error: data.error };
@@ -107,6 +111,7 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
     setToken(null);
     localStorage.removeItem('gamepro_token');
+    localStorage.removeItem('gamepro_user_id');
   };
 
   const isAdmin = () => {

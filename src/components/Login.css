@@ -180,31 +180,6 @@
   color: #ffffff;
 }
 
-.demo-accounts {
-  margin-top: 20px;
-  padding: 15px;
-  background: rgba(0, 212, 255, 0.1);
-  border: 1px solid rgba(0, 212, 255, 0.2);
-  border-radius: 10px;
-}
-
-.demo-accounts h4 {
-  color: #00d4ff;
-  font-size: 14px;
-  margin: 0 0 10px 0;
-  font-weight: 600;
-}
-
-.demo-accounts p {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 12px;
-  margin: 5px 0;
-  font-family: 'Courier New', monospace;
-}
-
-.demo-accounts strong {
-  color: #ffffff;
-}
 
 /* Mobile Responsiveness */
 @media (max-width: 768px) {

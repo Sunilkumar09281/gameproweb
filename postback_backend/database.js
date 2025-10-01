@@ -6,10 +6,7 @@ const MONGODB_URI = 'mongodb+srv://gamepro_db_user:PwNiJGMwNyX9L1Aw@gamepro.jhvz
 // Connect to MongoDB
 const connectDB = async () => {
   try {
-    await mongoose.connect(MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(MONGODB_URI);
     console.log('✅ MongoDB connected successfully!');
   } catch (error) {
     console.error('❌ MongoDB connection error:', error);
@@ -123,14 +120,6 @@ const surveySchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Create Models
-const User = mongoose.model('User', userSchema);
-const GameProUser = mongoose.model('GameProUser', gameproUserSchema);
-const Postback = mongoose.model('Postback', postbackSchema);
-const Partner = mongoose.model('Partner', partnerSchema);
-const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
-const Survey = mongoose.model('Survey', surveySchema);
-
 // UserData Schema - Enhanced for home page display and detailed modal
 const userDataSchema = new mongoose.Schema({
   name: { type: String, required: true },
@@ -150,7 +139,102 @@ const userDataSchema = new mongoose.Schema({
   timestamps: true
 });
 
+// User Activity Schema for tracking offers, earnings, referrals
+const userActivitySchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'GameProUser', required: true },
+  activityType: { 
+    type: String, 
+    enum: ['offer_completed', 'earning', 'referral', 'withdrawal', 'bonus'],
+    required: true 
+  },
+  offerName: String,
+  offerPartner: String,
+  amount: { type: Number, default: 0 },
+  status: { 
+    type: String, 
+    enum: ['pending', 'completed', 'failed', 'cancelled'],
+    default: 'pending'
+  },
+  referredUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'GameProUser' },
+  metadata: { type: mongoose.Schema.Types.Mixed },
+  createdAt: { type: Date, default: Date.now },
+  completedAt: Date
+}, {
+  timestamps: true
+});
+
+// User Referral Schema
+const userReferralSchema = new mongoose.Schema({
+  referrerId: { type: mongoose.Schema.Types.ObjectId, ref: 'GameProUser', required: true },
+  referredUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'GameProUser', required: true },
+  referralCode: String,
+  status: { 
+    type: String, 
+    enum: ['pending', 'active', 'completed'],
+    default: 'pending'
+  },
+  bonusEarned: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
+});
+
+// Offer Log Schema for tracking offer clicks and completions
+const offerLogSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: 'GameProUser', required: true },
+  username: { type: String, required: true },
+  offerName: { type: String, required: true },
+  offerUrl: { type: String, required: true },
+  offerPartner: { type: String, default: 'Unknown' },
+  rewardAmount: { type: Number, default: 0 },
+  
+  // Tracking information
+  clickedAt: { type: Date, default: Date.now },
+  completedAt: { type: Date, default: null },
+  completionTime: { type: Number, default: null }, // Time in seconds to complete
+  
+  // Status tracking
+  status: { 
+    type: String, 
+    enum: ['clicked', 'completed', 'abandoned'], 
+    default: 'clicked' 
+  },
+  
+  // User information at time of click
+  userIP: { type: String, default: 'Unknown' },
+  userAgent: { type: String, default: 'Unknown' },
+  referrer: { type: String, default: 'Direct' },
+  
+  // Additional metadata
+  metadata: {
+    source: { type: String, default: 'web_app' },
+    device: { type: String, default: 'Unknown' },
+    browser: { type: String, default: 'Unknown' },
+    country: { type: String, default: 'Unknown' },
+    sessionId: { type: String, default: '' }
+  },
+  
+  // Admin notes
+  adminNotes: { type: String, default: '' },
+  flagged: { type: Boolean, default: false },
+  
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+}, {
+  timestamps: true
+});
+
+// Create Models
+const User = mongoose.model('User', userSchema);
+const GameProUser = mongoose.model('GameProUser', gameproUserSchema);
+const Postback = mongoose.model('Postback', postbackSchema);
+const Partner = mongoose.model('Partner', partnerSchema);
 const UserData = mongoose.model('UserData', userDataSchema);
+const SurveyProvider = mongoose.model('SurveyProvider', surveyProviderSchema);
+const Survey = mongoose.model('Survey', surveySchema);
+const UserActivity = mongoose.model('UserActivity', userActivitySchema);
+const UserReferral = mongoose.model('UserReferral', userReferralSchema);
+const OfferLog = mongoose.model('OfferLog', offerLogSchema);
 
 // Export models
 module.exports = {
@@ -161,5 +245,8 @@ module.exports = {
   Partner,
   UserData,
   SurveyProvider,
-  Survey
+  Survey,
+  UserActivity,
+  UserReferral,
+  OfferLog
 };
