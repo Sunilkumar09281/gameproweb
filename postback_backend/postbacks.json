@@ -1,1 +1,70 @@
-[]
+[
+  {
+    "id": "ee13c725-482b-4b66-882c-960995917145",
+    "method": "POST",
+    "receivedAt": "2025-10-03T04:10:48.269Z",
+    "url": "https://api.theinterwebsite.space/postback-handler/5d30e8d1-643b-45d4-909b-a61bc739d1aa?offer_id=[OFFER_ID]&conversion_status=[CONVERSION_STATUS]&transaction_id=[TRANSACTION_ID]",
+    "status": 200,
+    "statusText": "OK",
+    "responseTime": "1310ms",
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "http://127.0.0.1:5173",
+      "access-control-expose-headers": "Set-Cookie",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "98899648beb592de-BOM",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-length": "44",
+      "content-type": "application/json",
+      "date": "Fri, 03 Oct 2025 04:09:58 GMT",
+      "rndr-id": "10bc8879-ed8d-4a86",
+      "server": "cloudflare",
+      "vary": "Origin, Accept-Encoding",
+      "x-render-origin-server": "gunicorn"
+    },
+    "requestBody": {},
+    "responseBody": {
+      "message": "Inbound postback recorded"
+    },
+    "ip": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+  },
+  {
+    "id": "4f968900-1e32-4d25-9da7-0bc27d1be679",
+    "method": "POST",
+    "receivedAt": "2025-10-03T04:11:36.476Z",
+    "url": "https://api.theinterwebsite.space/postback-handler/5d30e8d1-643b-45d4-909b-a61bc739d1aa?offer_id=[OFFER_ID]&conversion_status=[CONVERSION_STATUS]&transaction_id=[TRANSACTION_ID]",
+    "status": 200,
+    "statusText": "OK",
+    "responseTime": "1220ms",
+    "headers": {
+      "access-control-allow-credentials": "true",
+      "access-control-allow-origin": "http://127.0.0.1:5173",
+      "access-control-expose-headers": "Set-Cookie",
+      "alt-svc": "h3=\":443\"; ma=86400",
+      "cf-cache-status": "DYNAMIC",
+      "cf-ray": "988997765a894856-BOM",
+      "connection": "keep-alive",
+      "content-encoding": "br",
+      "content-length": "44",
+      "content-type": "application/json",
+      "date": "Fri, 03 Oct 2025 04:10:47 GMT",
+      "rndr-id": "d2e339c5-1abd-4f87",
+      "server": "cloudflare",
+      "vary": "Origin, Accept-Encoding",
+      "x-render-origin-server": "gunicorn"
+    },
+    "requestBody": {
+      "userId": "1234",
+      "accountId": "678",
+      "formId": "89"
+    },
+    "responseBody": {
+      "message": "Inbound postback recorded"
+    },
+    "ip": "::1",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+  }
+]
