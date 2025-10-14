@@ -394,7 +394,7 @@ app.use((req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Tracking server running on port: ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Backend URL: https://gameproback.onrender.com`);
+  console.log(`🔗 Backend URL: https://gameproback-bxsw.onrender.com`);
   console.log(`🔍 Enhanced IP detection enabled`);
   console.log(`🛡️  Trust proxy: enabled for accurate IP detection`);
 });

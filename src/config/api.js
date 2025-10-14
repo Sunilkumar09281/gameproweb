@@ -11,8 +11,8 @@ const getBackendUrl = () => {
   }
   
   // Production environments - ALWAYS use the correct backend URL
-  console.log('🔧 Production environment detected, using gameproback.onrender.com');
-  return 'https://gameproback.onrender.com';
+  console.log('🔧 Production environment detected, using https://gameproback-bxsw.onrender.com');
+  return 'https://https://gameproback-bxsw.onrender.com';
 };
 
 export const API_BASE_URL = getBackendUrl();
